@@ -76,9 +76,8 @@ bool MScore::useFallbackFont       = true;
 bool  MScore::saveTemplateMode = false;
 bool  MScore::noGui = false;
 
-MStyle* MScore::_defaultStyle;
-MStyle* MScore::_defaultStyleForParts;
-MStyle* MScore::_baseStyle;
+MStyle  MScore::_defaultStyleForParts;
+MStyle  MScore::_baseStyle;
 QString MScore::_globalShare;
 int     MScore::_vRaster;
 int     MScore::_hRaster;
@@ -101,7 +100,7 @@ qreal   MScore::nudgeStep;
 qreal   MScore::nudgeStep10;
 qreal   MScore::nudgeStep50;
 int     MScore::defaultPlayDuration;
-// QString MScore::partStyle;
+
 QString MScore::lastError;
 int     MScore::division    = 480; // 3840;   // pulses per quarter note (PPQ) // ticks per beat
 int     MScore::sampleRate  = 44100;
@@ -124,6 +123,36 @@ MuseScoreCore* MuseScoreCore::mscoreCore;
 extern void initDrumset();
 extern void initScoreFonts();
 extern QString mscoreGlobalShare;
+
+#define TR(a) QT_TRANSLATE_NOOP("error", a)
+std::vector<MScoreError> MScore::errorList {
+      { MS_NO_ERROR,                     0,    0                                                                           },
+
+      { NO_NOTE_SELECTED,                "s1", TR("No note selected:\nPlease select a note and retry\n")                   },
+      { NO_CHORD_REST_SELECTED,          "s2", TR("No chord/rest selected:\nPlease select a chord or rest and retry")      },
+      { NO_LYRICS_SELECTED,              "s3", TR("No note or lyrics selected:\nPlease select a note or lyrics and retry") },
+      { NO_NOTE_REST_SELECTED,           "s4", TR("No note or rest selected:\nPlease select a note or rest and retry")     },
+      { NO_NOTE_SLUR_SELECTED,           "s5", TR("No note or slur selected:\nPlease select a note or slur and retry")     },
+      { NO_STAFF_SELECTED,               "s6", TR("No staff selected:\nPlease select one or more staves and retry\n")      },
+      { NO_NOTE_FIGUREDBASS_SELECTED,    "s7", TR("No note or figured bass selected:\nPlease select a note or figured bass and retry") },
+
+      { CANNOT_INSERT_TUPLET,            "t1", TR("Cannot insert chord/rest in tuplet")                                    },
+      { CANNOT_SPLIT_TUPLET,             "t2", TR("Cannot split tuplet")                                                   },
+      { CANNOT_SPLIT_MEASURE_FIRST_BEAT, "m1", TR("Cannot split measure here:\n" "First beat of measure")                  },
+      { CANNOT_SPLIT_MEASURE_TUPLET,     "m2", TR("Cannot split measure here:\n" "Cannot split tuplet")                    },
+
+      { NO_DEST,                         "p1", TR("No destination to paste")                                               },
+      { DEST_TUPLET,                     "p2", TR("Cannot paste into tuplet")                                              },
+      { TUPLET_CROSSES_BAR,              "p3", TR("Tuplet cannot cross barlines")                                          },
+      { DEST_LOCAL_TIME_SIGNATURE,       "p4", TR("Cannot paste in local time signature")                                  },
+      { DEST_TREMOLO,                    "p5", TR("Cannot paste in tremolo")                                               },
+      { NO_MIME,                         "p6", TR("Nothing to paste")                                                      },
+      { DEST_NO_CR,                      "p7", TR("Destination is not a chord or rest")                                    },
+      { CANNOT_CHANGE_LOCAL_TIMESIG,     "l1", TR("Cannot change local time signature:\nMeasure is not empty")             },
+      };
+#undef TR
+
+MsError MScore::_error { MS_NO_ERROR };
 
 //---------------------------------------------------------
 //   Direction
@@ -167,8 +196,8 @@ void Direction::fillComboBox(QComboBox* cb)
       cb->addItem(qApp->translate("Direction", "down"), int(DOWN));
       }
 
-static Spatium doubleToSpatium(double d)       { return Spatium(d); }
-static TextStyleType intToTextStyleType(int i) { return TextStyleType(i); }
+static Spatium doubleToSpatium(double d) { return Spatium(d); }
+// static SubStyle intToSubStyle(int i)     { return SubStyle(i); }
 
 //---------------------------------------------------------
 //   init
@@ -179,12 +208,12 @@ void MScore::init()
       if (!QMetaType::registerConverter<Spatium, double>(&Spatium::toDouble))
             qFatal("registerConverter Spatium::toDouble failed");
       if (!QMetaType::registerConverter<double, Spatium>(&doubleToSpatium))
-            qFatal("registerConverter douobleToSpatium failed");
-      if (!QMetaType::registerConverter<int, TextStyleType>(&intToTextStyleType))
-            qFatal("registerConverter intToTextStyleType failed");
+            qFatal("registerConverter doubleToSpatium failed");
+//      if (!QMetaType::registerConverter<int, SubStyle>(&intToSubStyle))
+//            qFatal("registerConverter intToSubStyle failed");
 
 #ifdef SCRIPT_INTERFACE
-      qRegisterMetaType<Element::Type>     ("ElementType");
+      qRegisterMetaType<ElementType>     ("ElementType");
       qRegisterMetaType<Note::ValueType>   ("ValueType");
 
       qRegisterMetaType<Direction::E>("Direction");
@@ -211,12 +240,10 @@ void MScore::init()
       qRegisterMetaType<Glissando::Type>("GlissandoType");
 
       //classed enumerations
-      qRegisterMetaType<MSQE_TextStyleType::E>("TextStyleType");
-      qRegisterMetaType<MSQE_BarLineType::E>("BarLineType");
+//      qRegisterMetaType<MSQE_StyledPropertyListIdx::E>("StyledPropertyListIdx");
+//      qRegisterMetaType<MSQE_BarLineType::E>("BarLineType");
 #endif
       qRegisterMetaType<Fraction>("Fraction");
-
-//      DPMM = DPI / INCH;       // dots/mm
 
 #ifdef Q_OS_WIN
       QDir dir(QCoreApplication::applicationDirPath() + QString("/../" INSTALL_NAME));
@@ -257,10 +284,28 @@ void MScore::init()
       frameMarginColor    = QColor("#5999db");
       bgColor.setNamedColor("#dddddd");
 
-      _defaultStyle         = new MStyle();
-      Ms::initStyle(_defaultStyle);
-      _defaultStyleForParts = 0;
-      _baseStyle            = new MStyle(*_defaultStyle);
+      //
+      //  initialize styles
+      //
+      QSettings s;
+      QString defStyle = s.value("defaultStyle").toString();
+      if (!defStyle.isEmpty()) {
+            QFile f(defStyle);
+            if (f.open(QIODevice::ReadOnly)) {
+                  _defaultStyle.load(&f);
+                  f.close();
+                  }
+            }
+      _defaultStyle.precomputeValues();
+      _baseStyle            = _defaultStyle;
+      _defaultStyleForParts = _defaultStyle;
+      QString partStyle = s.value("partStyle").toString();
+      if (!partStyle.isEmpty()) {
+            QFile f(partStyle);
+            if (f.open(QIODevice::ReadOnly))
+                  _defaultStyleForParts.load(&f);
+            }
+
 
       //
       //  load internal fonts
@@ -271,7 +316,7 @@ void MScore::init()
       //
 #if !defined(Q_OS_MAC) && !defined(Q_OS_IOS)
       static const char* fonts[] = {
-            ":/fonts/musejazz/MuseJazzText.ttf",
+            ":/fonts/musejazz/MuseJazzText.otf",
             ":/fonts/FreeSans.ttf",
             ":/fonts/FreeSerif.ttf",
             ":/fonts/FreeSerifBold.ttf",
@@ -305,64 +350,40 @@ void MScore::init()
       }
 
 //---------------------------------------------------------
-//   defaultStyle
-//---------------------------------------------------------
-
-MStyle* MScore::defaultStyle()
-      {
-      return _defaultStyle;
-      }
-
-//---------------------------------------------------------
-//   defaultStyleForParts
-//---------------------------------------------------------
-
-MStyle* MScore::defaultStyleForParts()
-      {
-      if (!_defaultStyleForParts) {
-            QSettings s;
-            QString partStyle = s.value("partStyle").toString();
-            if (!partStyle.isEmpty()) {
-                  QFile f(partStyle);
-                  if (f.open(QIODevice::ReadOnly)) {
-                        MStyle* s = new MStyle(*defaultStyle());
-                        if (s->load(&f))
-                              _defaultStyleForParts = s;
-                        else
-                              delete s;
-                        }
-                  }
-            }
-      return _defaultStyleForParts;
-      }
-
-//---------------------------------------------------------
-//   baseStyle
-//---------------------------------------------------------
-
-MStyle* MScore::baseStyle()
-      {
-      return _baseStyle;
-      }
-
-//---------------------------------------------------------
-//   setDefaultStyle
-//---------------------------------------------------------
-
-void MScore::setDefaultStyle(MStyle* s)
-      {
-      delete _defaultStyle;
-      _defaultStyle = s;
-      }
-
-//---------------------------------------------------------
 //   defaultStyleForPartsHasChanged
 //---------------------------------------------------------
 
 void MScore::defaultStyleForPartsHasChanged()
       {
-      delete _defaultStyleForParts;
-      _defaultStyleForParts = 0;
+// TODO ??
+//      delete _defaultStyleForParts;
+//      _defaultStyleForParts = 0;
+      }
+
+//---------------------------------------------------------
+//   errorMessage
+//---------------------------------------------------------
+
+const char* MScore::errorMessage()
+      {
+      for (MScoreError& e : errorList) {
+            if (e.no == _error)
+                  return e.txt;
+            }
+      return "unknown error";
+      }
+
+//---------------------------------------------------------
+//   errorGroup
+//---------------------------------------------------------
+
+const char* MScore::errorGroup()
+      {
+      for (MScoreError& e : errorList) {
+            if (e.no == _error)
+                  return e.group;
+            }
+      return "";
       }
 
 #ifdef SCRIPT_INTERFACE
@@ -408,7 +429,6 @@ QQmlEngine* MScore::qml()
             qmlRegisterType<Part>       ("MuseScore", 1, 0, "Part");
             qmlRegisterType<Staff>      ("MuseScore", 1, 0, "Staff");
             qmlRegisterType<Harmony>    ("MuseScore", 1, 0, "Harmony");
-            qmlRegisterType<PageFormat> ("MuseScore", 1, 0, "PageFormat");
             qmlRegisterType<TimeSig>    ("MuseScore", 1, 0, "TimeSig");
             qmlRegisterType<KeySig>     ("MuseScore", 1, 0, "KeySig");
             qmlRegisterType<Slur>       ("MuseScore", 1, 0, "Slur");
@@ -433,8 +453,8 @@ QQmlEngine* MScore::qml()
                "Element", tr("you cannot create an element"));
 
             //classed enumerations
-            qmlRegisterUncreatableType<MSQE_TextStyleType>("MuseScore", 1, 0, "TextStyleType", tr("You can't create an enum"));
-            qmlRegisterUncreatableType<MSQE_BarLineType>("MuseScore", 1, 0, "BarLineType", tr("You can't create an enum"));
+//            qmlRegisterUncreatableType<MSQE_StyledPropertyListIdx>("MuseScore", 1, 0, "StyledPropertyListIdx", tr("You can't create an enum"));
+//            qmlRegisterUncreatableType<MSQE_BarLineType>("MuseScore", 1, 0, "BarLineType", tr("You can't create an enum"));
 
             //-----------virtual classes
             qmlRegisterType<ChordRest>();
@@ -455,6 +475,10 @@ MPaintDevice* MScore::paintDevice()
       return _paintDevice;
       }
 
+//---------------------------------------------------------
+//   metric
+//---------------------------------------------------------
+
 int MPaintDevice::metric(PaintDeviceMetric m) const
       {
       switch (m) {
@@ -466,6 +490,10 @@ int MPaintDevice::metric(PaintDeviceMetric m) const
             }
       return 0;
       }
+
+//---------------------------------------------------------
+//   paintEngine
+//---------------------------------------------------------
 
 QPaintEngine* MPaintDevice::paintEngine() const
       {

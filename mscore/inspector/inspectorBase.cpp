@@ -41,6 +41,7 @@ InspectorBase::InspectorBase(QWidget* parent)
       _layout->setContentsMargins(0, 10, 0, 0);
       _layout->addStretch(100);
       setLayout(_layout);
+
       connect(resetMapper, SIGNAL(mapped(int)), SLOT(resetClicked(int)));
       connect(valueMapper, SIGNAL(mapped(int)), SLOT(valueChanged(int)));
       connect(styleMapper, SIGNAL(mapped(int)), SLOT(setStyleClicked(int)));
@@ -60,6 +61,8 @@ QVariant InspectorBase::getValue(const InspectorItem& ii) const
             v = w->property("value");
       else if (qobject_cast<QSpinBox*>(w))
             v = w->property("value");
+      else if (qobject_cast<QFontComboBox*>(w))
+            v = static_cast<QFontComboBox*>(w)->currentFont().family();
       else if (qobject_cast<QComboBox*>(w)) {
             QComboBox* cb = qobject_cast<QComboBox*>(w);
             int val = cb->currentIndex();
@@ -67,12 +70,14 @@ QVariant InspectorBase::getValue(const InspectorItem& ii) const
                   val = cb->itemData(val).toInt();
             v = val;
             }
-      else if (qobject_cast<QCheckBox*>(w))
+      else if (qobject_cast<QCheckBox*>(w) || qobject_cast<QPushButton*>(w) || qobject_cast<QToolButton*>(w))
             v = w->property("checked");
       else if (qobject_cast<QLineEdit*>(w))
             v =  w->property("text");
       else if (qobject_cast<Awl::ColorLabel*>(w))
             v = static_cast<Awl::ColorLabel*>(w)->color();
+      else if (qobject_cast<Ms::AlignSelect*>(w))
+            v = int(static_cast<Ms::AlignSelect*>(w)->align());
       else
             qFatal("not supported widget %s", w->metaObject()->className());
 
@@ -162,6 +167,8 @@ void InspectorBase::setValue(const InspectorItem& ii, QVariant val)
             static_cast<QDoubleSpinBox*>(w)->setValue(val.toDouble());
       else if (qobject_cast<QSpinBox*>(w))
             static_cast<QSpinBox*>(w)->setValue(val.toInt());
+      else if (qobject_cast<QFontComboBox*>(w))
+            static_cast<QFontComboBox*>(w)->setCurrentFont(QFont(val.toString()));
       else if (qobject_cast<QComboBox*>(w)) {
             int ival = val.toInt();
             QComboBox* cb = qobject_cast<QComboBox*>(w);
@@ -177,10 +184,16 @@ void InspectorBase::setValue(const InspectorItem& ii, QVariant val)
             }
       else if (qobject_cast<QCheckBox*>(w))
             static_cast<QCheckBox*>(w)->setChecked(val.toBool());
+      else if (qobject_cast<QPushButton*>(w))
+            static_cast<QPushButton*>(w)->setChecked(val.toBool());
+      else if (qobject_cast<QToolButton*>(w))
+            static_cast<QToolButton*>(w)->setChecked(val.toBool());
       else if (qobject_cast<QLineEdit*>(w))
             static_cast<QLineEdit*>(w)->setText(val.toString());
       else if (qobject_cast<Awl::ColorLabel*>(w))
             static_cast<Awl::ColorLabel*>(w)->setColor(val.value<QColor>());
+      else if (qobject_cast<Ms::AlignSelect*>(w))
+            static_cast<Ms::AlignSelect*>(w)->setAlign(Align(val.toInt()));
       else
             qFatal("not supported widget %s", w->metaObject()->className());
       }
@@ -240,7 +253,7 @@ bool InspectorBase::dirty() const
 
 void InspectorBase::setElement()
       {
-      for  (const InspectorItem& ii : iList) {
+      for (const InspectorItem& ii : iList) {
             P_ID id    = ii.t;
             P_TYPE pt  = propertyType(id);
 
@@ -269,10 +282,11 @@ void InspectorBase::setElement()
                   else
                         val = QVariant(f.denominator());
                   }
-
-            ii.w->blockSignals(true);
-            setValue(ii, val);
-            ii.w->blockSignals(false);
+            if (ii.w) {
+                  ii.w->blockSignals(true);
+                  setValue(ii, val);
+                  ii.w->blockSignals(false);
+                  }
             checkDifferentValues(ii);
             }
       postInit();
@@ -287,6 +301,8 @@ void InspectorBase::setElement()
 void InspectorBase::checkDifferentValues(const InspectorItem& ii)
       {
       bool valuesAreDifferent = false;
+      QColor c(preferences.isThemeDark() ? Qt::yellow : Qt::darkCyan);
+
       if (inspector->el().size() > 1) {
             P_ID id      = ii.t;
             P_TYPE pt    = propertyType(id);
@@ -321,38 +337,30 @@ void InspectorBase::checkDifferentValues(const InspectorItem& ii)
                   if (valuesAreDifferent)
                         break;
                   }
-            QColor c(preferences.isThemeDark() ? Qt::yellow : Qt::blue);
-
-            // ii.w->setStyleSheet(valuesAreDifferent ? QString("* { color: %1 }").arg(MScore::selectColor[0].name()) : "");
             ii.w->setStyleSheet(valuesAreDifferent ? QString("* { color: %1 }").arg(c.name()) : "");
             }
 
       //deal with reset if only one element, or if values are the same
-      if (!valuesAreDifferent){
-            PropertyStyle styledValue = inspector->el().front()->propertyStyle(ii.t);
-            bool reset;
-            if (styledValue == PropertyStyle::STYLED) {
-                  // does not work for QComboBox:
-                  // ii.w->setStyleSheet("* { color: gray; foreground: gray; }");
-                  ii.w->setStyleSheet("* { color: gray; }");
-                  reset = false;
+      bool reset = true;
+      if (!valuesAreDifferent) {
+            PropertyFlags styledValue = inspector->el().front()->propertyFlags(ii.t);
+            switch (styledValue) {
+                  case PropertyFlags::STYLED:
+                        ii.w->setStyleSheet(QString("* { color: %1 }").arg(c.name()));
+                        reset = false;
+                        break;
+                  case PropertyFlags::UNSTYLED:
+                        ii.w->setStyleSheet("");
+                        reset = true;
+                        break;
+                  case PropertyFlags::NOSTYLE:
+                        reset = !isDefault(ii);
+                        ii.w->setStyleSheet("");
+                        break;
                   }
-            else if (styledValue == PropertyStyle::UNSTYLED) {
-                  ii.w->setStyleSheet("");
-                  reset = true;
-                  }
-            else {
-                  reset = !isDefault(ii);
-                  ii.w->setStyleSheet("");
-                  }
-            if (ii.r)
-                  ii.r->setEnabled(reset);
             }
-      else {
-            if (ii.r)
-                  ii.r->setEnabled(true);
-            ii.w->setStyleSheet("");
-            }
+      if (ii.r)
+            ii.r->setEnabled(reset);
       }
 
 //---------------------------------------------------------
@@ -375,11 +383,11 @@ void InspectorBase::valueChanged(int idx, bool reset)
 
             // reset sets property style UNSTYLED to STYLED
 
-            PropertyStyle ps = e->propertyStyle(id);
-            if (reset && ps == PropertyStyle::UNSTYLED)
-                  ps = PropertyStyle::STYLED;
-            else if (ps == PropertyStyle::STYLED)
-                  ps = PropertyStyle::UNSTYLED;
+            PropertyFlags ps = e->propertyFlags(id);
+            if (reset && ps == PropertyFlags::UNSTYLED)
+                  ps = PropertyFlags::STYLED;
+            else if (ps == PropertyFlags::STYLED)
+                  ps = PropertyFlags::UNSTYLED;
 
             QVariant val1 = e->getProperty(id);
 
@@ -426,7 +434,7 @@ void InspectorBase::valueChanged(int idx, bool reset)
                         }
                   }
             else {
-                  if (val1 != val2 || (reset && ps != PropertyStyle::NOSTYLE))
+                  if (val1 != val2 || (reset && ps != PropertyFlags::NOSTYLE))
                         e->undoChangeProperty(id, val2, ps);
                   }
             }
@@ -435,6 +443,10 @@ void InspectorBase::valueChanged(int idx, bool reset)
       score->endCmd();
       inspector->setInspectorEdit(false);
       postInit();
+
+      // a subStyle change may change several other values:
+      if (id == P_ID::SUB_STYLE)
+            setElement();
       }
 
 //---------------------------------------------------------
@@ -473,7 +485,11 @@ void InspectorBase::setStyleClicked(int i)
             return;
       e->score()->startCmd();
       QVariant val = getValue(ii);
-      e->undoChangeProperty(ii.t, val, PropertyStyle::STYLED);
+      e->undoChangeProperty(ii.t, val, PropertyFlags::STYLED);
+      P_ID id      = ii.t;
+      P_TYPE t     = propertyType(id);
+      if (t == P_TYPE::SP_REAL)
+            val = val.toDouble() / e->score()->spatium();
       e->score()->undo(new ChangeStyleVal(e->score(), sidx, val));
       checkDifferentValues(ii);
       e->score()->endCmd();
@@ -484,8 +500,37 @@ void InspectorBase::setStyleClicked(int i)
 //    initialize inspector panel
 //---------------------------------------------------------
 
-void InspectorBase::mapSignals(const std::vector<InspectorItem>& il)
+void InspectorBase::mapSignals(const std::vector<InspectorItem>& il, const std::vector<InspectorPanel>& pl)
       {
+      for (auto& p : pl)
+            pList.push_back(p);
+      for (auto& p : pList) {
+            QToolButton* title = p.title;
+            QWidget* panel = p.panel;
+            if (title) {
+                  title->setCheckable(true);
+                  title->setFocusPolicy(Qt::NoFocus);
+                  connect(title, &QToolButton::clicked, this, [title, panel] (bool visible) {
+                        if (panel)
+                              panel->setVisible(visible);
+                        if (title) {
+                              title->setChecked(visible);
+                              title->setArrowType(visible ? Qt::DownArrow : Qt::RightArrow);
+                              QString key = title->parent()->objectName();
+                              QSettings s;
+                              s.setValue(QString("inspector/%1_visible").arg(key), visible);
+                              }});
+                  title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+                  title->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+                  QSettings s;
+                  QString key = title->parent()->objectName();
+                  bool visible = s.value(QString("inspector/%1_visible").arg(key), true).toBool();
+                  title->setArrowType(visible ? Qt::DownArrow : Qt::RightArrow);
+                  title->setChecked(visible);
+                  if (panel)
+                        panel->setVisible(visible);
+                  }
+            }
       for (auto& i : il)
             iList.push_back(i);
       int i = 0;
@@ -501,25 +546,31 @@ void InspectorBase::mapSignals(const std::vector<InspectorItem>& il)
                         QMenu* menu = new QMenu(this);
                         resetButton->setMenu(menu);
                         resetButton->setPopupMode(QToolButton::MenuButtonPopup);
-                        QAction* a = menu->addAction(tr("set style"));
+                        QAction* a = menu->addAction(tr("Set as style"));
                         styleMapper->setMapping(a, i);
                         connect(a, SIGNAL(triggered()), styleMapper, SLOT(map()));
                         }
                   }
             QWidget* w = ii.w;
+            if (!w)
+                  continue;
             valueMapper->setMapping(w, i);
             if (qobject_cast<QDoubleSpinBox*>(w))
                   connect(w, SIGNAL(valueChanged(double)), valueMapper, SLOT(map()));
             else if (qobject_cast<QSpinBox*>(w))
                   connect(w, SIGNAL(valueChanged(int)), valueMapper, SLOT(map()));
+            else if (qobject_cast<QFontComboBox*>(w))
+                  connect(w, SIGNAL(currentFontChanged(const QFont&)), valueMapper, SLOT(map()));
             else if (qobject_cast<QComboBox*>(w))
                   connect(w, SIGNAL(currentIndexChanged(int)), valueMapper, SLOT(map()));
-            else if (qobject_cast<QCheckBox*>(w))
+            else if (qobject_cast<QCheckBox*>(w) || qobject_cast<QPushButton*>(w) || qobject_cast<QToolButton*>(w))
                   connect(w, SIGNAL(toggled(bool)), valueMapper, SLOT(map()));
             else if (qobject_cast<QLineEdit*>(w))
                   connect(w, SIGNAL(textChanged(const QString&)), valueMapper, SLOT(map()));
             else if (qobject_cast<Awl::ColorLabel*>(w))
                   connect(w, SIGNAL(colorChanged(QColor)), valueMapper, SLOT(map()));
+            else if (qobject_cast<Ms::AlignSelect*>(w))
+                  connect(w, SIGNAL(alignChanged(Align)), valueMapper, SLOT(map()));
             else
                   qFatal("not supported widget %s", w->metaObject()->className());
             ++i;
@@ -543,7 +594,7 @@ QWidget* InspectorBase::addWidget()
       {
       QWidget* w = new QWidget;
       _layout->insertWidget(_layout->count()-1, w);
-      _layout->insertSpacing(_layout->count()-1, 20);
+      _layout->insertSpacing(_layout->count()-1, 5);
       return w;
       }
 
@@ -571,7 +622,6 @@ void InspectorBase::resetToStyle()
       score->startCmd();
       for (Element* e : inspector->el()) {
             Text* text = static_cast<Text*>(e);
-            text->undoChangeProperty(P_ID::TEXT_STYLE, QVariant::fromValue(score->textStyle(text->textStyleType())));
             // Preserve <sym> tags
             text->undoChangeProperty(P_ID::TEXT, text->plainText().toHtmlEscaped().replace("&lt;sym&gt;","<sym>").replace("&lt;/sym&gt;","</sym>"));
             }

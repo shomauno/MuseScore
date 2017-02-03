@@ -59,7 +59,7 @@ TimeSig* TimeSig::clone() const
 
 qreal TimeSig::mag() const
       {
-      return staff() ? staff()->mag() : 1.0;
+      return staff() ? staff()->mag(tick()) : 1.0;
       }
 
 //---------------------------------------------------------
@@ -87,7 +87,7 @@ void TimeSig::setSig(const Fraction& f, TimeSigType st)
 
 bool TimeSig::acceptDrop(const DropData& data) const
       {
-      return data.element->type() == Element::Type::TIMESIG;
+      return data.element->type() == ElementType::TIMESIG;
       }
 
 //---------------------------------------------------------
@@ -97,7 +97,7 @@ bool TimeSig::acceptDrop(const DropData& data) const
 Element* TimeSig::drop(const DropData& data)
       {
       Element* e = data.element;
-      if (e->type() == Element::Type::TIMESIG) {
+      if (e->type() == ElementType::TIMESIG) {
             // change timesig applies to all staves, can't simply set subtype
             // for this one only
             // ownership of e is transferred to cmdAddTimeSig
@@ -142,7 +142,7 @@ void TimeSig::setDenominatorString(const QString& a)
 //   write TimeSig
 //---------------------------------------------------------
 
-void TimeSig::write(Xml& xml) const
+void TimeSig::write(XmlWriter& xml) const
       {
       xml.stag("TimeSig");
       if (timeSigType() != TimeSigType::NORMAL)
@@ -156,8 +156,10 @@ void TimeSig::write(Xml& xml) const
             xml.tag("stretchD", stretch().denominator());
             }
       if (customText) {
-            xml.tag("textN", _numeratorString);
-            xml.tag("textD", _denominatorString);
+            if (!_numeratorString.isEmpty())
+                  xml.tag("textN", _numeratorString);
+            if (!_denominatorString.isEmpty())
+                  xml.tag("textD", _denominatorString);
             }
       if (!_groups.empty())
             _groups.write(xml);
@@ -271,7 +273,7 @@ void TimeSig::layout1()
 
       if (_staff) {
             // if staff is without time sig, format as if no text at all
-            if (!_staff->staffType()->genTimesig() ) {
+            if (!_staff->staffType(tick())->genTimesig() ) {
                   // reset position and box sizes to 0
                   pointLargeLeftParen.rx() = 0.0;
                   pn.rx() = 0.0;
@@ -282,8 +284,8 @@ void TimeSig::layout1()
                   // draw() will anyway skip any drawing if staff type has no time sigs
                   return;
                   }
-            numOfLines  = _staff->lines();
-            lineDist    = _staff->lineDistance();
+            numOfLines  = _staff->lines(tick());
+            lineDist    = _staff->lineDistance(tick());
             }
       else {
             // assume dimensions of a standard staff
@@ -366,7 +368,7 @@ void TimeSig::layout1()
 
 void TimeSig::draw(QPainter* painter) const
       {
-      if (staff() && !staff()->staffType()->genTimesig())
+      if (staff() && !staff()->staffType(tick())->genTimesig())
             return;
       painter->setPen(curColor());
       std::vector<SymId> ns = toTimeSigString(_numeratorString);

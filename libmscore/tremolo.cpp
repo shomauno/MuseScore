@@ -240,7 +240,7 @@ void Tremolo::layout()
       //
       Segment* s = _chord1->segment()->next();
       while (s) {
-            if (s->element(track()) && (s->element(track())->type() == Element::Type::CHORD))
+            if (s->element(track()) && (s->element(track())->type() == ElementType::CHORD))
                   break;
             s = s->next();
             }
@@ -349,7 +349,7 @@ void Tremolo::layout()
 //   write
 //---------------------------------------------------------
 
-void Tremolo::write(Xml& xml) const
+void Tremolo::write(XmlWriter& xml) const
       {
       if (!xml.canWrite(this))
             return;

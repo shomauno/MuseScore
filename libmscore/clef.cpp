@@ -100,10 +100,9 @@ Clef::Clef(Score* s)
 Clef::Clef(const Clef& c)
    : Element(c)
       {
-      _showCourtesy     = c._showCourtesy;
-      _showPreviousClef = c._showPreviousClef;
-      _small            = c._small;
-      _clefTypes        = c._clefTypes;
+      _showCourtesy = c._showCourtesy;
+      _small        = c._small;
+      _clefTypes    = c._clefTypes;
       }
 
 //---------------------------------------------------------
@@ -112,7 +111,7 @@ Clef::Clef(const Clef& c)
 
 qreal Clef::mag() const
       {
-      qreal mag = staff() ? staff()->mag() : 1.0;
+      qreal mag = staff() ? staff()->mag(tick()) : 1.0;
       if (_small)
             mag *= score()->styleD(StyleIdx::smallClefMag);
       return mag;
@@ -128,12 +127,13 @@ void Clef::layout()
       int   lines;
       qreal lineDist;
       Segment* clefSeg  = segment();
+      int stepOffset;
 
       // check clef visibility and type compatibility
       if (clefSeg && staff()) {
-            StaffType* staffType = staff()->staffType();
-            bool show            = staffType->genClef();        // check staff type allows clef display
             int tick             = clefSeg->tick();
+            StaffType* staffType = staff()->staffType(tick);
+            bool show            = staffType->genClef();        // check staff type allows clef display
 
             // check clef is compatible with staff type group:
             if (ClefInfo::staffGroup(clefType()) != staffType->group()) {
@@ -152,12 +152,14 @@ void Clef::layout()
                      segment()->tick(), segment()->tick()/1920, staffIdx());
                   return;
                   }
-            lines    = staffType->lines();         // init values from staff type
-            lineDist = staffType->lineDistance().val();
+            lines      = staffType->lines();         // init values from staff type
+            lineDist   = staffType->lineDistance().val();
+            stepOffset = staffType->stepOffset();
             }
       else {
-            lines    = 5;
-            lineDist = 1.0;
+            lines      = 5;
+            lineDist   = 1.0;
+            stepOffset = 0;
             }
 
       qreal _spatium = spatium();
@@ -166,7 +168,7 @@ void Clef::layout()
             symId = ClefInfo::symId(clefType());
             yoff = lineDist * (lines - ClefInfo::line(clefType()));
             }
-      
+
       switch (clefType()) {
             case ClefType::C_19C:                            // 19th C clef is like a G clef
                   yoff = lineDist * 1.5;
@@ -202,8 +204,7 @@ void Clef::layout()
             }
       // clefs are right aligned to Segment
       QRectF r(symBbox(symId));
-//      setPos(-r.right(), yoff * _spatium);
-      setPos(0.0, yoff * _spatium);
+      setPos(0.0, yoff * _spatium + (stepOffset * -_spatium));
 
       setbbox(r);
       }
@@ -214,7 +215,7 @@ void Clef::layout()
 
 void Clef::draw(QPainter* painter) const
       {
-      if (symId == SymId::noSym || (staff() && !staff()->staffType()->genClef()))
+      if (symId == SymId::noSym || (staff() && !staff()->staffType(tick())->genClef()))
             return;
       painter->setPen(curColor());
       drawSymbol(symId, painter);
@@ -226,8 +227,8 @@ void Clef::draw(QPainter* painter) const
 
 bool Clef::acceptDrop(const DropData& data) const
       {
-      return (data.element->type() == Element::Type::CLEF
-         || (/*!generated() &&*/ data.element->type() == Element::Type::AMBITUS) );
+      return (data.element->type() == ElementType::CLEF
+         || (/*!generated() &&*/ data.element->type() == ElementType::AMBITUS) );
       }
 
 //---------------------------------------------------------
@@ -238,15 +239,15 @@ Element* Clef::drop(const DropData& data)
       {
       Element* e = data.element;
       Clef* c = 0;
-      if (e->type() == Element::Type::CLEF) {
-            Clef* clef = static_cast<Clef*>(e);
+      if (e->isClef()) {
+            Clef* clef = toClef(e);
             ClefType stype  = clef->clefType();
             if (clefType() != stype) {
                   score()->undoChangeClef(staff(), segment(), stype);
                   c = this;
                   }
             }
-      else if (e->type() == Element::Type::AMBITUS) {
+      else if (e->isAmbitus()) {
             /*if (!generated())*/ {
                   Measure*    meas  = measure();
                   Segment*    segm  = meas->getSegment(Segment::Type::Ambitus, meas->tick());
@@ -298,7 +299,7 @@ void Clef::read(XmlReader& e)
 //   write
 //---------------------------------------------------------
 
-void Clef::write(Xml& xml) const
+void Clef::write(XmlWriter& xml) const
       {
       xml.stag(name());
       if (_clefTypes._concertClef != ClefType::INVALID)

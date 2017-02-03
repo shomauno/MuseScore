@@ -19,7 +19,6 @@
 #include "icons.h"
 #include "musescore.h"
 #include "libmscore/undo.h"
-#include "texteditor.h"
 #include "icons.h"
 #include "libmscore/harmony.h"
 #include "libmscore/chordlist.h"
@@ -146,10 +145,14 @@ EditStyle::EditStyle(Score* s, QWidget* parent)
       { StyleIdx::staffLineWidth,          false, staffLineWidth,          resetStaffLineWidth },
       { StyleIdx::beamWidth,               false, beamWidth,               0 },
       { StyleIdx::beamMinLen,              false, beamMinLen,              0 },
-      { StyleIdx::hairpinY,                false, hairpinY,                resetHairpinY },
+
+      { StyleIdx::hairpinPlacement,        false, hairpinPlacement,        resetHairpinPlacement },
+      { StyleIdx::hairpinPosAbove,         false, hairpinPosAbove,         resetHairpinPosAbove },
+      { StyleIdx::hairpinPosBelow,         false, hairpinPosBelow,         resetHairpinPosBelow },
       { StyleIdx::hairpinLineWidth,        false, hairpinLineWidth,        resetHairpinLineWidth },
       { StyleIdx::hairpinHeight,           false, hairpinHeight,           resetHairpinHeight },
       { StyleIdx::hairpinContHeight,       false, hairpinContinueHeight,   resetHairpinContinueHeight },
+
       { StyleIdx::dotNoteDistance,         false, noteDotDistance,         0 },
       { StyleIdx::dotDotDistance,          false, dotDotDistance,          0 },
       { StyleIdx::stemWidth,               false, stemWidth,               0 },
@@ -179,13 +182,22 @@ EditStyle::EditStyle(Score* s, QWidget* parent)
       { StyleIdx::propertyDistance,        false, propertyDistance,        0 },
       { StyleIdx::voltaY,                  false, voltaY,                  resetVoltaY },
       { StyleIdx::voltaHook,               false, voltaHook,               resetVoltaHook },
-      { StyleIdx::voltaLineWidth,          false, voltaLineWidth,          resetVoltaLineWidth },
-      { StyleIdx::ottavaY,                 false, ottavaY,                 resetOttavaY },
-      { StyleIdx::ottavaHook,              false, ottavaHook,              resetOttavaHook },
+      { StyleIdx::voltaLineWidth,          false, voltaLineWidth,          resetVoltaLineWidth  },
+
+      { StyleIdx::ottavaPosAbove,          false, ottavaPosAbove,          resetOttavaPosAbove  },
+      { StyleIdx::ottavaPosBelow,          false, ottavaPosBelow,          resetOttavaPosBelow  },
+      { StyleIdx::ottavaHook,              false, ottavaHook,              resetOttavaHook      },
       { StyleIdx::ottavaLineWidth,         false, ottavaLineWidth,         resetOttavaLineWidth },
-      { StyleIdx::pedalY,                  false, pedalY,                  resetPedalY },
-      { StyleIdx::pedalLineWidth,          false, pedalLineWidth,          resetPedalLineWidth },
-      { StyleIdx::trillY,                  false, trillY,                  resetTrillY },
+
+      { StyleIdx::pedalPlacement,          false, pedalLinePlacement,      resetPedalLinePlacement  },
+      { StyleIdx::pedalPosAbove,           false, pedalLinePosAbove,       resetPedalLinePosAbove   },
+      { StyleIdx::pedalPosBelow,           false, pedalLinePosBelow,       resetPedalLinePosBelow   },
+      { StyleIdx::pedalLineWidth,          false, pedalLineWidth,          resetPedalLineWidth  },
+
+      { StyleIdx::trillPlacement,          false, trillLinePlacement,      resetTrillLinePlacement  },
+      { StyleIdx::trillPosAbove,           false, trillLinePosAbove,       resetTrillLinePosAbove   },
+      { StyleIdx::trillPosBelow,           false, trillLinePosBelow,       resetTrillLinePosBelow   },
+
       { StyleIdx::harmonyY,                false, harmonyY,                0 },
       { StyleIdx::harmonyFretDist,         false, harmonyFretDist,         0 },
       { StyleIdx::minHarmonyDistance,      false, minHarmonyDistance,      0 },
@@ -262,14 +274,23 @@ EditStyle::EditStyle(Score* s, QWidget* parent)
       { StyleIdx::MusicalSymbolFont,       false, musicalSymbolFont,            0 },
       { StyleIdx::MusicalTextFont,         false, musicalTextFont,              0 },
       { StyleIdx::autoplaceHairpinDynamicsDistance, false, autoplaceHairpinDynamicsDistance, resetAutoplaceHairpinDynamicsDistance },
-      { StyleIdx::dynamicsMinDistance,              false, dynamicsMinDistance,          resetDynamicsMinDistance },
+
+
+      { StyleIdx::dynamicsPlacement,       false, dynamicsPlacement,          resetDynamicsPlacement },
+      { StyleIdx::dynamicsPosAbove,        false, dynamicsPosAbove,           resetDynamicsPosAbove },
+      { StyleIdx::dynamicsPosBelow,        false, dynamicsPosBelow,           resetDynamicsPosBelow },
+      { StyleIdx::dynamicsMinDistance,     false, dynamicsMinDistance,        resetDynamicsMinDistance },
+
       { StyleIdx::autoplaceVerticalAlignRange,      false, autoplaceVerticalAlignRange, resetAutoplaceVerticalAlignRange },
       { StyleIdx::textLinePlacement,       false, textLinePlacement, resetTextLinePlacement },
       { StyleIdx::textLinePosAbove,        false, textLinePosAbove,             resetTextLinePosAbove },
       { StyleIdx::textLinePosBelow,        false, textLinePosBelow,             resetTextLinePosBelow },
       };
 
-      for (QComboBox* cb : std::vector<QComboBox*> { lyricsPlacement, textLinePlacement }) {
+      for (QComboBox* cb : std::vector<QComboBox*> {
+            lyricsPlacement, textLinePlacement, hairpinPlacement, pedalLinePlacement,
+            trillLinePlacement, dynamicsPlacement
+            }) {
             cb->clear();
             cb->addItem(tr("Above"), int(Element::Placement::ABOVE));
             cb->addItem(tr("Below"), int(Element::Placement::BELOW));
@@ -440,7 +461,7 @@ EditStyle::EditStyle(Score* s, QWidget* parent)
       }
 
 //---------------------------------------------------------
-//   closeEvent
+//   hideEvent
 //---------------------------------------------------------
 
 void EditStyle::hideEvent(QHideEvent* ev)
@@ -493,7 +514,7 @@ void EditStyle::on_comboFBFont_currentIndexChanged(int index)
 void EditStyle::applyToAllParts()
       {
       for (Excerpt* e : cs->masterScore()->excerpts()) {
-            e->partScore()->undo(new ChangeStyle(e->partScore(), *cs->style()));
+            e->partScore()->undo(new ChangeStyle(e->partScore(), cs->style()));
             e->partScore()->update();
             }
       }
@@ -576,7 +597,7 @@ QVariant EditStyle::getValue(StyleIdx idx)
 
 void EditStyle::setValues()
       {
-      const MStyle& lstyle = *cs->style();
+      const MStyle& lstyle = cs->style();
       for (const StyleWidget& sw : styleWidgets) {
             if (sw.widget)
                   sw.widget->blockSignals(true);
@@ -696,24 +717,6 @@ void EditStyle::setValues()
       radioFBBottom->setChecked(lstyle.value(StyleIdx::figuredBassAlignment).toInt() == 1);
       radioFBModern->setChecked(lstyle.value(StyleIdx::figuredBassStyle).toInt() == 0);
       radioFBHistoric->setChecked(lstyle.value(StyleIdx::figuredBassStyle).toInt() == 1);
-
-#if 0 // TODO-ws
-      for (int i = 0; i < int(ArticulationType::ARTICULATIONS); ++i) {
-            QComboBox* cb = static_cast<QComboBox*>(articulationTable->cellWidget(i, 1));
-            if (cb == 0)
-                  continue;
-            ArticulationAnchor st  = lstyle.articulationAnchor(i);
-            int idx = 0;
-            switch (st) {
-                  case ArticulationAnchor::TOP_STAFF:       idx = 0;    break;
-                  case ArticulationAnchor::BOTTOM_STAFF:    idx = 1;    break;
-                  case ArticulationAnchor::CHORD:           idx = 2;    break;
-                  case ArticulationAnchor::TOP_CHORD:       idx = 3;    break;
-                  case ArticulationAnchor::BOTTOM_CHORD:    idx = 4;    break;
-                  }
-            cb->setCurrentIndex(idx);
-            }
-#endif
 
       QString mfont(lstyle.value(StyleIdx::MusicalSymbolFont).toString());
       int idx = 0;
@@ -922,9 +925,9 @@ void EditStyle::valueChanged(int i)
                           cs->undo(new ChangeStyleVal(cs, i.first, i.second));
                           }
                     if (scoreFont->textEnclosureThickness()) {
-                           TextStyle ts = cs->textStyle(TextStyleType::REHEARSAL_MARK);
-                           ts.setFrameWidth(Spatium(scoreFont->textEnclosureThickness()));
-                           cs->undo(new ChangeTextStyle(cs, ts));
+//                           TextStyle ts = cs->textStyle(TextStyleType::REHEARSAL_MARK);
+//                           ts.setFrameWidth(Spatium(scoreFont->textEnclosureThickness()));
+//TODO                           cs->undo(new ChangeTextStyle(cs, ts));
                            }
                     }
               setValue = true;
@@ -936,7 +939,7 @@ void EditStyle::valueChanged(int i)
 
       const StyleWidget& sw = styleWidget(idx);
       if (sw.reset)
-            sw.reset->setEnabled(!cs->style()->isDefault(idx));
+            sw.reset->setEnabled(!cs->style().isDefault(idx));
       }
 
 //---------------------------------------------------------
@@ -946,7 +949,7 @@ void EditStyle::valueChanged(int i)
 void EditStyle::resetStyleValue(int i)
       {
       StyleIdx idx = (StyleIdx)i;
-      cs->undo(new ChangeStyleVal(cs, idx, MScore::defaultStyle()->value(idx)));
+      cs->undo(new ChangeStyleVal(cs, idx, MScore::defaultStyle().value(idx)));
       setValues();
       cs->update();
       }

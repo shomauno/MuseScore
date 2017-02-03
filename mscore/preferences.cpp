@@ -296,11 +296,11 @@ void Preferences::write()
       s.setValue("pngTransparent",     pngTransparent);
       s.setValue("language",           language);
 
-      s.setValue("paperWidth",  MScore::defaultStyle()->pageFormat()->width());
-      s.setValue("paperHeight", MScore::defaultStyle()->pageFormat()->height());
+      s.setValue("paperWidth",  MScore::defaultStyle().value(StyleIdx::pageWidth).toReal());
+      s.setValue("paperHeight", MScore::defaultStyle().value(StyleIdx::pageHeight).toReal());
 
-      s.setValue("twosided",    MScore::defaultStyle()->pageFormat()->twosided());
-      s.setValue("spatium",     MScore::defaultStyle()->value(StyleIdx::spatium).toDouble() / DPI);
+      s.setValue("twosided",    MScore::defaultStyle().value(StyleIdx::pageTwosided).toBool());
+      s.setValue("spatium",     MScore::defaultStyle().value(StyleIdx::spatium).toDouble() / DPI);
 
       s.setValue("mag", mag);
       s.setValue("showMidiControls", showMidiControls);
@@ -319,7 +319,7 @@ void Preferences::write()
       if (globalStyle == MuseScoreStyleType::DARK_OXYGEN)
             styleName = "dark";
       else if (globalStyle == MuseScoreStyleType::LIGHT_OXYGEN)
-            styleName = "light_oxygen";
+            styleName = "light";
       else if (globalStyle == MuseScoreStyleType::DARK_FUSION)
             styleName = "dark_fusion";
       s.setValue("style", styleName);
@@ -1519,13 +1519,13 @@ bool Preferences::readDefaultStyle()
       {
       if (defaultStyleFile.isEmpty())
             return false;
-      MStyle* style = new MStyle(*MScore::defaultStyle());
+      MStyle style = MScore::defaultStyle();
       QFile f(defaultStyleFile);
       if (!f.open(QIODevice::ReadOnly))
             return false;
-      bool rv = style->load(&f);
+      bool rv = style.load(&f);
       if (rv)
-            MScore::setDefaultStyle(style);     // transfer ownership
+            MScore::setDefaultStyle(style);
       f.close();
       return rv;
       }
@@ -1772,7 +1772,7 @@ bool Preferences::readPluginList()
             qDebug("Cannot open plugins file <%s>", qPrintable(f.fileName()));
             return false;
             }
-      XmlReader e(&f);
+      XmlReader e(0, &f);
       while (e.readNextStartElement()) {
             if (e.name() == "museScore") {
                   while (e.readNextStartElement()) {
@@ -1823,7 +1823,7 @@ void Preferences::writePluginList()
             qDebug("cannot create plugin file <%s>", qPrintable(f.fileName()));
             return;
             }
-      Xml xml(&f);
+      XmlWriter xml(0, &f);
       xml.header();
       xml.stag("museScore version=\"" MSC_VERSION "\"");
       foreach(const PluginDescription& d, pluginList) {
@@ -1911,9 +1911,10 @@ void Preferences::updatePluginList()
 void PreferenceDialog::printShortcutsClicked()
       {
       QPrinter printer(QPrinter::HighResolution);
-      MStyle* s = MScore::defaultStyle();
-      const PageFormat* pf = s->pageFormat();
-      printer.setPaperSize(pf->size(), QPrinter::Inch);
+      MStyle& s = MScore::defaultStyle();
+      qreal pageW = s.value(StyleIdx::pageWidth).toReal();
+      qreal pageH = s.value(StyleIdx::pageHeight).toReal();
+      printer.setPaperSize(QSizeF(pageW, pageH), QPrinter::Inch);
 
       printer.setCreator("MuseScore Version: " VERSION);
       printer.setFullPage(true);

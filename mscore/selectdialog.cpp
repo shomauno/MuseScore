@@ -29,6 +29,8 @@
 #include "libmscore/system.h"
 #include "libmscore/score.h"
 #include "libmscore/slur.h"
+#include "libmscore/articulation.h"
+#include "musescore.h"
 
 namespace Ms {
 
@@ -39,24 +41,25 @@ namespace Ms {
 SelectDialog::SelectDialog(const Element* _e, QWidget* parent)
    : QDialog(parent)
       {
+      setObjectName("SelectDialog");
       setupUi(this);
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
       e = _e;
       type->setText(qApp->translate("elementName", e->userName().toUtf8()));
 
       switch (e->type()) {
-            case Element::Type::ACCIDENTAL:
+            case ElementType::ACCIDENTAL:
                   subtype->setText(qApp->translate("accidental", e->subtypeName().toUtf8()));
                   break;
-            case Element::Type::SLUR_SEGMENT:
+            case ElementType::SLUR_SEGMENT:
                   subtype->setText(qApp->translate("elementName", e->subtypeName().toUtf8()));
                   break;
-            case Element::Type::FINGERING:
-            case Element::Type::STAFF_TEXT:
+            case ElementType::FINGERING:
+            case ElementType::STAFF_TEXT:
                   subtype->setText(qApp->translate("TextStyle", e->subtypeName().toUtf8()));
                   break;
-            case Element::Type::ARTICULATION: // comes translated, but from a different method
-                  subtype->setText(static_cast<const Articulation*>(e)->userName());
+            case ElementType::ARTICULATION: // comes translated, but from a different method
+                  subtype->setText(toArticulation(e)->userName());
                   break;
             // other come translated or don't need any or are too difficult to implement
             default: subtype->setText(e->subtypeName());
@@ -64,6 +67,8 @@ SelectDialog::SelectDialog(const Element* _e, QWidget* parent)
       sameSubtype->setEnabled(e->subtype() != -1);
       subtype->setEnabled(e->subtype() != -1);
       inSelection->setEnabled(e->score()->selection().isRange());
+
+      MuseScore::restoreGeometry(this);
       }
 
 //---------------------------------------------------------
@@ -95,7 +100,7 @@ void SelectDialog::setPattern(ElementPattern* p)
       p->system  = 0;
       if (sameSystem->isChecked()) {
             do {
-                  if (e->type() == Element::Type::SYSTEM) {
+                  if (e->type() == ElementType::SYSTEM) {
                         p->system = static_cast<const System*>(e);
                         break;
                         }
@@ -103,5 +108,16 @@ void SelectDialog::setPattern(ElementPattern* p)
                   } while (e);
             }
       }
+
+//---------------------------------------------------------
+//   hideEvent
+//---------------------------------------------------------
+
+void SelectDialog::hideEvent(QHideEvent* event)
+      {
+      MuseScore::saveGeometry(this);
+      QWidget::hideEvent(event);
+      }
+
 }
 

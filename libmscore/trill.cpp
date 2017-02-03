@@ -54,7 +54,7 @@ void TrillSegment::draw(QPainter* painter) const
 void TrillSegment::add(Element* e)
       {
       e->setParent(this);
-      if (e->type() == Element::Type::ACCIDENTAL) {
+      if (e->type() == ElementType::ACCIDENTAL) {
             // accidental is part of trill
             trill()->setAccidental(static_cast<Accidental*>(e));
             }
@@ -126,7 +126,7 @@ void TrillSegment::layout()
             setUserOff(QPointF());
 
       if (staff())
-            setMag(staff()->mag());
+            setMag(staff()->mag(tick()));
       if (isSingleType() || isBeginType()) {
             Accidental* a = trill()->accidental();
             if (a) {
@@ -168,9 +168,7 @@ void TrillSegment::layout()
             symbolLine(SymId::wiggleTrill, SymId::wiggleTrill);
 
       if (parent()) {
-            qreal yo = score()->styleP(StyleIdx::trillY);
-            if (trill()->placeBelow())
-                  yo = -yo + staff()->height() + bbox().height();
+            qreal yo = score()->styleP(trill()->placeBelow() ? StyleIdx::trillPosBelow : StyleIdx::trillPosAbove);
             rypos() = yo;
             if (autoplace()) {
                   qreal minDistance = spatium();
@@ -206,7 +204,7 @@ Shape TrillSegment::shape() const
 
 bool TrillSegment::acceptDrop(const DropData& data) const
       {
-      if (data.element->type() == Element::Type::ACCIDENTAL)
+      if (data.element->type() == ElementType::ACCIDENTAL)
             return true;
       return false;
       }
@@ -219,7 +217,7 @@ Element* TrillSegment::drop(const DropData& data)
       {
       Element* e = data.element;
       switch(e->type()) {
-            case Element::Type::ACCIDENTAL:
+            case ElementType::ACCIDENTAL:
                   e->setParent(trill());
                   score()->undoAddElement(e);
                   break;
@@ -322,7 +320,7 @@ Trill::~Trill()
 
 void Trill::add(Element* e)
       {
-      if (e->type() == Element::Type::ACCIDENTAL) {
+      if (e->type() == ElementType::ACCIDENTAL) {
             e->setParent(this);
             _accidental = static_cast<Accidental*>(e);
             }
@@ -401,7 +399,7 @@ LineSegment* Trill::createLineSegment()
 //   Trill::write
 //---------------------------------------------------------
 
-void Trill::write(Xml& xml) const
+void Trill::write(XmlWriter& xml) const
       {
       if (!xml.canWrite(this))
             return;
@@ -586,7 +584,7 @@ void Trill::undoSetTrillType(Type val)
 
 void Trill::setYoff(qreal val)
       {
-      rUserYoffset() += (val - score()->styleS(StyleIdx::trillY).val()) * spatium();
+      rUserYoffset() += val * spatium() - score()->styleP(StyleIdx::trillPosAbove);
       }
 
 //---------------------------------------------------------

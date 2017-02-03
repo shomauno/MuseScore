@@ -18,6 +18,7 @@
 #include "libmscore/stem.h"
 #include "libmscore/hook.h"
 #include "libmscore/tuplet.h"
+#include "libmscore/staff.h"
 #include "inspector.h"
 #include "inspectorNote.h"
 
@@ -37,31 +38,42 @@ InspectorNote::InspectorNote(QWidget* parent)
       static const NoteHead::Group heads[] = {
             NoteHead::Group::HEAD_NORMAL,
             NoteHead::Group::HEAD_CROSS,
-            NoteHead::Group::HEAD_DIAMOND,
-            NoteHead::Group::HEAD_TRIANGLE,
-            NoteHead::Group::HEAD_SLASH,
+            NoteHead::Group::HEAD_PLUS,
             NoteHead::Group::HEAD_XCIRCLE,
+            NoteHead::Group::HEAD_WITHX,
+            NoteHead::Group::HEAD_TRIANGLE_UP,
+            NoteHead::Group::HEAD_TRIANGLE_DOWN,
+            NoteHead::Group::HEAD_SLASHED1,
+            NoteHead::Group::HEAD_SLASHED2,
+            NoteHead::Group::HEAD_DIAMOND,
+            NoteHead::Group::HEAD_DIAMOND_OLD,
+            NoteHead::Group::HEAD_CIRCLED,
+            NoteHead::Group::HEAD_CIRCLED_LARGE,
+            NoteHead::Group::HEAD_LARGE_ARROW,
+
+            NoteHead::Group::HEAD_SLASH,
+            NoteHead::Group::HEAD_BREVIS_ALT,
+
             NoteHead::Group::HEAD_DO,
             NoteHead::Group::HEAD_RE,
             NoteHead::Group::HEAD_MI,
             NoteHead::Group::HEAD_FA,
             NoteHead::Group::HEAD_SOL,
             NoteHead::Group::HEAD_LA,
-            NoteHead::Group::HEAD_TI,
-            NoteHead::Group::HEAD_BREVIS_ALT
+            NoteHead::Group::HEAD_TI
             };
 
       //
       // fix order of noteheads
       //
-      for (unsigned i = 0; i < sizeof(heads)/sizeof(*heads); ++i) {
-            n.noteHeadGroup->addItem(qApp->translate("noteheadnames", NoteHead::groupToGroupName(heads[i])));
-            n.noteHeadGroup->setItemData(i, QVariant(int(heads[i])));
-            }
+      for (auto head : heads)
+            n.noteHeadGroup->addItem(NoteHead::group2userName(head), int(head));
 
       // noteHeadType starts at -1: correct values and count one item more (HEAD_AUTO)
-      for (int i = 0; i <= int(NoteHead::Type::HEAD_TYPES); ++i)
-            n.noteHeadType->setItemData(i, i-1);
+      for (int i = 0; i <= int(NoteHead::Type::HEAD_TYPES); ++i) {
+            n.noteHeadType->addItem(NoteHead::type2userName(NoteHead::Type(i - 1)));
+            n.noteHeadType->setItemData(i, i - 1);
+            }
 
       const std::vector<InspectorItem> iiList = {
             { P_ID::SMALL,          0, 0, n.small,         n.resetSmall         },
@@ -84,7 +96,12 @@ InspectorNote::InspectorNote(QWidget* parent)
 
             { P_ID::LEADING_SPACE,  0, 2, s.leadingSpace,  s.resetLeadingSpace  },
             };
-      mapSignals(iiList);
+      const std::vector<InspectorPanel> ppList = {
+            { s.title, s.panel },
+            { c.title, c.panel },
+            { n.title, n.panel },
+            };
+      mapSignals(iiList, ppList);
 
       connect(n.dot1,     SIGNAL(clicked()),     SLOT(dot1Clicked()));
       connect(n.dot2,     SIGNAL(clicked()),     SLOT(dot2Clicked()));
@@ -113,6 +130,7 @@ void InspectorNote::setElement()
       n.hook->setEnabled(note->chord()->hook());
       n.beam->setEnabled(note->chord()->beam());
       n.tuplet->setEnabled(note->chord()->tuplet());
+      n.noteHeadGroup->setEnabled(note->chord()->staff()->isPitchedStaff(note->tick()) && note->chord()->staff()->staffType(note->tick())->noteHeadScheme() == NoteHeadScheme::HEAD_NORMAL);
       InspectorElementBase::setElement();
       bool nograce = !note->chord()->isGrace();
       s.leadingSpace->setEnabled(nograce);

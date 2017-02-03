@@ -63,7 +63,7 @@ ChordStyleEditor::ChordStyleEditor(QWidget* parent)
 void ChordStyleEditor::setScore(Score* s)
       {
       score = s;
-      setChordList(s->style()->chordList());
+      setChordList(s->style().chordList());
       }
 
 //---------------------------------------------------------
@@ -202,6 +202,7 @@ void ChordStyleEditor::save()
       settings.setValue("splitter2", splitter2->saveState());
 //      settings.setValue("list", harmonyList->saveState());
       settings.setValue("col1", harmonyList->columnWidth(0));
+      MuseScore::saveGeometry(this);
       }
 
 //---------------------------------------------------------
@@ -210,6 +211,7 @@ void ChordStyleEditor::save()
 
 void ChordStyleEditor::restore()
       {
+      MuseScore::restoreGeometry(this);
       if (!useFactorySettings) {
             QSettings settings;
             settings.beginGroup(objectName());
@@ -275,13 +277,13 @@ void HarmonyCanvas::paintEvent(QPaintEvent* event)
             p.drawText(ts->x, ts->y, ts->text);
             }
 
-      if (dragElement && dragElement->type() == Element::Type::FSYMBOL) {
+      if (dragElement && dragElement->type() == ElementType::FSYMBOL) {
             FSymbol* sb = static_cast<FSymbol*>(dragElement);
 
-            double _spatium = 2.0 * PALETTE_SPATIUM / extraMag;
-            const TextStyle* st = &gscore->textStyle(TextStyleType::HARMONY);
-            QFont ff(st->font(_spatium * MScore::pixelRatio));
-            ff.setFamily(sb->font().family());
+//TODO:ws             double _spatium = 2.0 * PALETTE_SPATIUM / extraMag;
+//            const TextStyle* st = &gscore->textStyle(TextStyleType::HARMONY);
+//            QFont ff(st->font(_spatium * MScore::pixelRatio));
+//            ff.setFamily(sb->font().family());
 
             QString s;
             int code = sb->code();
@@ -291,7 +293,7 @@ void HarmonyCanvas::paintEvent(QPaintEvent* event)
                   }
             else
                   s = QChar(code);
-            p.setFont(ff);
+//TODO:ws            p.setFont(ff);
             QPen pen(Qt::yellow);
             p.setPen(pen);
             p.drawText(dragElement->pos(), s);
@@ -304,6 +306,7 @@ void HarmonyCanvas::paintEvent(QPaintEvent* event)
 
 void HarmonyCanvas::render(const QList<RenderAction>& renderList, double& x, double& y, int tpc, NoteSpellingType noteSpelling, NoteCaseType noteCase)
       {
+#if 0 // TODO:ws
       QStack<QPointF> stack;
       int fontIdx = 0;
       double _spatium = 2.0 * PALETTE_SPATIUM / extraMag;
@@ -388,6 +391,7 @@ void HarmonyCanvas::render(const QList<RenderAction>& renderList, double& x, dou
                         }
                   }
             }
+#endif
       }
 
 //---------------------------------------------------------
@@ -466,7 +470,8 @@ void HarmonyCanvas::setChordDescription(ChordDescription* sd, ChordList* sl)
 
 void HarmonyCanvas::dropEvent(QDropEvent* event)
       {
-      if (dragElement && dragElement->type() == Element::Type::FSYMBOL) {
+#if 0       // TODO:ws
+      if (dragElement && dragElement->type() == ElementType::FSYMBOL) {
             FSymbol* sb = static_cast<FSymbol*>(dragElement);
 
             double _spatium = 2.0 * PALETTE_SPATIUM / extraMag;
@@ -493,6 +498,7 @@ void HarmonyCanvas::dropEvent(QDropEvent* event)
             dragElement = 0;
             update();
             }
+#endif
       }
 
 //---------------------------------------------------------
@@ -505,12 +511,12 @@ void HarmonyCanvas::dragEnterEvent(QDragEnterEvent* event)
       if (data->hasFormat(mimeSymbolFormat)) {
             QByteArray a = data->data(mimeSymbolFormat);
 
-            XmlReader e(a);
+            XmlReader e(gscore, a);
 
             QPointF dragOffset;
             Fraction duration;
-            Element::Type type = Element::readType(e, &dragOffset, &duration);
-            if (type == Element::Type::FSYMBOL) {
+            ElementType type = Element::readType(e, &dragOffset, &duration);
+            if (type == ElementType::FSYMBOL) {
                   event->acceptProposedAction();
                   dragElement = Element::create(type, gscore);
                   dragElement->read(e);
@@ -537,7 +543,7 @@ void HarmonyCanvas::dragLeaveEvent(QDragLeaveEvent*)
 void HarmonyCanvas::dragMoveEvent(QDragMoveEvent* event)
       {
       event->acceptProposedAction();
-      if (dragElement && dragElement->type() == Element::Type::FSYMBOL) {
+      if (dragElement && dragElement->type() == ElementType::FSYMBOL) {
             dragElement->setPos(imatrix.map(event->pos()));
             update();
             }
@@ -561,7 +567,7 @@ void HarmonyCanvas::deleteAction()
 
 static void updateHarmony(void*, Element* e)
       {
-      if (e->type() == Element::Type::HARMONY)
+      if (e->type() == ElementType::HARMONY)
             static_cast<Harmony*>(e)->render();
       }
 
@@ -572,7 +578,7 @@ static void updateHarmony(void*, Element* e)
 void ChordStyleEditor::accept()
       {
       canvas->updateChordDescription();
-      score->style()->setChordList(chordList);
+      score->style().setChordList(chordList);
       chordList = 0;
 
       score->scanElements(0, updateHarmony);

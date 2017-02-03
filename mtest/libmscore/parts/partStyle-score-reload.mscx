@@ -14,22 +14,6 @@
         <family>Arial</family>
         <size>48</size>
         </TextStyle>
-      <page-layout>
-        <page-height>1190.55</page-height>
-        <page-width>1683.78</page-width>
-        <page-margins type="even">
-          <left-margin>56.6929</left-margin>
-          <right-margin>56.6929</right-margin>
-          <top-margin>56.6929</top-margin>
-          <bottom-margin>113.386</bottom-margin>
-          </page-margins>
-        <page-margins type="odd">
-          <left-margin>56.6929</left-margin>
-          <right-margin>56.6929</right-margin>
-          <top-margin>56.6929</top-margin>
-          <bottom-margin>113.386</bottom-margin>
-          </page-margins>
-        </page-layout>
       <Spatium>1.364</Spatium>
       </Style>
     <showInvisible>1</showInvisible>
@@ -47,14 +31,6 @@
     <metaTag name="translator"></metaTag>
     <metaTag name="workNumber"></metaTag>
     <metaTag name="workTitle">Style Score</metaTag>
-    <PageList>
-      <Page>
-        <System>
-          </System>
-        <System>
-          </System>
-        </Page>
-      </PageList>
     <Part>
       <Staff id="1">
         <StaffType group="pitched">
@@ -154,11 +130,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>4</lid>
-          </BarLine>
         </Measure>
       <Measure number="2">
         <Chord>
@@ -170,11 +141,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>7</lid>
-          </BarLine>
         </Measure>
       <Measure number="3">
         <Chord>
@@ -186,11 +152,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>10</lid>
-          </BarLine>
         </Measure>
       <Measure number="4">
         <Chord>
@@ -202,11 +163,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>13</lid>
-          </BarLine>
         </Measure>
       <Measure number="5">
         <Chord>
@@ -218,11 +174,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>16</lid>
-          </BarLine>
         </Measure>
       <Measure number="6">
         <Chord>
@@ -234,11 +185,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>19</lid>
-          </BarLine>
         </Measure>
       <Measure number="7">
         <Chord>
@@ -250,11 +196,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>22</lid>
-          </BarLine>
         </Measure>
       <Measure number="8">
         <Chord>
@@ -266,11 +207,6 @@
             <tpc>14</tpc>
             </Note>
           </Chord>
-        <BarLine>
-          <subtype>end</subtype>
-          <span>1</span>
-          <lid>25</lid>
-          </BarLine>
         </Measure>
       </Staff>
     <Staff id="2">
@@ -290,11 +226,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>28</lid>
-          </BarLine>
         </Measure>
       <Measure number="2">
         <Rest>
@@ -302,11 +233,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>30</lid>
-          </BarLine>
         </Measure>
       <Measure number="3">
         <Rest>
@@ -314,11 +240,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>32</lid>
-          </BarLine>
         </Measure>
       <Measure number="4">
         <Rest>
@@ -326,11 +247,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>34</lid>
-          </BarLine>
         </Measure>
       <Measure number="5">
         <Rest>
@@ -338,11 +254,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>36</lid>
-          </BarLine>
         </Measure>
       <Measure number="6">
         <Rest>
@@ -350,11 +261,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>38</lid>
-          </BarLine>
         </Measure>
       <Measure number="7">
         <Rest>
@@ -362,11 +268,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
-          <lid>40</lid>
-          </BarLine>
         </Measure>
       <Measure number="8">
         <Rest>
@@ -374,11 +275,6 @@
           <durationType>measure</durationType>
           <duration>4/4</duration>
           </Rest>
-        <BarLine>
-          <subtype>end</subtype>
-          <span>1</span>
-          <lid>42</lid>
-          </BarLine>
         </Measure>
       </Staff>
     <Score>
@@ -396,36 +292,12 @@
           <family>Arial</family>
           <size>48</size>
           </TextStyle>
-        <page-layout>
-          <page-height>1683.78</page-height>
-          <page-width>1190.55</page-width>
-          <page-margins type="even">
-            <left-margin>56.6929</left-margin>
-            <right-margin>56.6929</right-margin>
-            <top-margin>56.6929</top-margin>
-            <bottom-margin>113.386</bottom-margin>
-            </page-margins>
-          <page-margins type="odd">
-            <left-margin>56.6929</left-margin>
-            <right-margin>56.6929</right-margin>
-            <top-margin>56.6929</top-margin>
-            <bottom-margin>113.386</bottom-margin>
-            </page-margins>
-          </page-layout>
         <Spatium>1.76389</Spatium>
         </Style>
       <showInvisible>1</showInvisible>
       <showUnprintable>1</showUnprintable>
       <showFrames>1</showFrames>
       <showMargins>0</showMargins>
-      <PageList>
-        <Page>
-          <System>
-            </System>
-          <System>
-            </System>
-          </Page>
-        </PageList>
       <Part>
         <Staff id="1">
           <linkedTo>1</linkedTo>
@@ -490,11 +362,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>4</lid>
-            </BarLine>
           </Measure>
         <Measure number="2">
           <Chord>
@@ -506,11 +373,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>7</lid>
-            </BarLine>
           </Measure>
         <Measure number="3">
           <Chord>
@@ -522,11 +384,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>10</lid>
-            </BarLine>
           </Measure>
         <Measure number="4">
           <Chord>
@@ -538,11 +395,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>13</lid>
-            </BarLine>
           </Measure>
         <Measure number="5">
           <Chord>
@@ -554,11 +406,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>16</lid>
-            </BarLine>
           </Measure>
         <Measure number="6">
           <Chord>
@@ -570,11 +417,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>19</lid>
-            </BarLine>
           </Measure>
         <Measure number="7">
           <Chord>
@@ -586,11 +428,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>22</lid>
-            </BarLine>
           </Measure>
         <Measure number="8">
           <Chord>
@@ -602,11 +439,6 @@
               <tpc>14</tpc>
               </Note>
             </Chord>
-          <BarLine>
-            <subtype>end</subtype>
-            <span>1</span>
-            <lid>25</lid>
-            </BarLine>
           </Measure>
         </Staff>
       <name>Flute</name>
@@ -626,36 +458,12 @@
           <family>Arial</family>
           <size>48</size>
           </TextStyle>
-        <page-layout>
-          <page-height>1683.78</page-height>
-          <page-width>1190.55</page-width>
-          <page-margins type="even">
-            <left-margin>56.6929</left-margin>
-            <right-margin>56.6929</right-margin>
-            <top-margin>56.6929</top-margin>
-            <bottom-margin>113.386</bottom-margin>
-            </page-margins>
-          <page-margins type="odd">
-            <left-margin>56.6929</left-margin>
-            <right-margin>56.6929</right-margin>
-            <top-margin>56.6929</top-margin>
-            <bottom-margin>113.386</bottom-margin>
-            </page-margins>
-          </page-layout>
         <Spatium>1.76389</Spatium>
         </Style>
       <showInvisible>1</showInvisible>
       <showUnprintable>1</showUnprintable>
       <showFrames>1</showFrames>
       <showMargins>0</showMargins>
-      <PageList>
-        <Page>
-          <System>
-            </System>
-          <System>
-            </System>
-          </Page>
-        </PageList>
       <Part>
         <Staff id="1">
           <linkedTo>2</linkedTo>
@@ -717,11 +525,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>28</lid>
-            </BarLine>
           </Measure>
         <Measure number="1" len="32/4">
           <multiMeasureRest>8</multiMeasureRest>
@@ -734,10 +537,6 @@
             <durationType>measure</durationType>
             <duration>32/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>end</subtype>
-            <span>1</span>
-            </BarLine>
           </Measure>
         <Measure number="2">
           <Rest>
@@ -745,11 +544,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>30</lid>
-            </BarLine>
           </Measure>
         <Measure number="3">
           <Rest>
@@ -757,11 +551,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>32</lid>
-            </BarLine>
           </Measure>
         <Measure number="4">
           <Rest>
@@ -769,11 +558,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>34</lid>
-            </BarLine>
           </Measure>
         <Measure number="5">
           <Rest>
@@ -781,11 +565,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>36</lid>
-            </BarLine>
           </Measure>
         <Measure number="6">
           <Rest>
@@ -793,11 +572,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>38</lid>
-            </BarLine>
           </Measure>
         <Measure number="7">
           <Rest>
@@ -805,11 +579,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>normal</subtype>
-            <span>1</span>
-            <lid>40</lid>
-            </BarLine>
           </Measure>
         <Measure number="8">
           <Rest>
@@ -817,11 +586,6 @@
             <durationType>measure</durationType>
             <duration>4/4</duration>
             </Rest>
-          <BarLine>
-            <subtype>end</subtype>
-            <span>1</span>
-            <lid>42</lid>
-            </BarLine>
           </Measure>
         </Staff>
       <name>Oboe</name>

@@ -29,7 +29,7 @@ bool ScoreView::testElementDragTransition(QMouseEvent* ev)
       {
       if (curElement == 0 || !curElement->isMovable() || QApplication::mouseButtons() != Qt::LeftButton)
             return false;
-      if (curElement->type() == Element::Type::MEASURE) {
+      if (curElement->type() == ElementType::MEASURE) {
             System* dragSystem = (System*)(curElement->parent());
             int staffIdx  = getStaff(dragSystem, data.startMove);
             dragStaff = score()->staff(staffIdx);
@@ -50,14 +50,13 @@ void ScoreView::startDrag()
       data.startMove  -= dragElement->userOff();
       _score->startCmd();
 
-      if (dragElement->type() == Element::Type::MEASURE) {
+      if (dragElement->isMeasure()) {
             staffUserDist = dragStaff->userDist();
             }
       else {
-            foreach(Element* e, _score->selection().elements())
+            for (Element* e : _score->selection().elements())
                   e->setStartDragPosition(e->userOff());
             }
-      _score->update();
       }
 
 //---------------------------------------------------------
@@ -79,7 +78,7 @@ void ScoreView::doDragElement(QMouseEvent* ev)
       data.delta   = pt;
       data.pos     = toLogical(ev->pos());
 
-      if (dragElement->type() == Element::Type::MEASURE) {
+      if (dragElement->type() == ElementType::MEASURE) {
             if (qApp->keyboardModifiers() == Qt::ShiftModifier) {
                   qreal dist      = dragStaff->userDist() + delta.y();
                   int partStaves  = dragStaff->part()->nstaves();
@@ -147,7 +146,7 @@ void ScoreView::endDrag()
             score()->undo(new ChangeStaffUserDist(dragStaff, userDist));
             }
       else {
-            foreach (Element* e, _score->selection().elements()) {
+            for (Element* e : _score->selection().elements()) {
                   e->endDrag();
                   if (e->userOff() != e->startDragPosition()) {
                         e->undoChangeProperty(P_ID::AUTOPLACE, false);
@@ -155,7 +154,6 @@ void ScoreView::endDrag()
                         }
                   }
             }
-      _score->setLayoutAll();
       dragElement = 0;
       setDropTarget(0); // this also resets dropAnchor
       _score->endCmd();

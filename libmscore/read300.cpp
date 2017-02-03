@@ -21,6 +21,7 @@
 #include "audio.h"
 #include "sig.h"
 #include "barline.h"
+#include "excerpt.h"
 
 #ifdef OMR
 #include "omr/omr.h"
@@ -88,15 +89,15 @@ bool Score::read(XmlReader& e)
             else if (tag == "showMargins")
                   _showPageborders = e.readInt();
             else if (tag == "Style") {
-                  qreal sp = _style.value(StyleIdx::spatium).toDouble();
-                  _style.load(e);
+                  qreal sp = style().value(StyleIdx::spatium).toDouble();
+                  style().load(e);
                   // if (_layoutMode == LayoutMode::FLOAT || _layoutMode == LayoutMode::SYSTEM) {
                   if (_layoutMode == LayoutMode::FLOAT) {
                         // style should not change spatium in
                         // float mode
-                        _style.set(StyleIdx::spatium, sp);
+                        style().set(StyleIdx::spatium, sp);
                         }
-                  _scoreFont = ScoreFont::fontFactory(_style.value(StyleIdx::MusicalSymbolFont).toString());
+                  _scoreFont = ScoreFont::fontFactory(style().value(StyleIdx::MusicalSymbolFont).toString());
                   }
             else if (tag == "copyright" || tag == "rights") {
                   Text* text = new Text(this);
@@ -167,19 +168,9 @@ bool Score::read(XmlReader& e)
 
                         ex->setPartScore(s);
                         ex->setTracks(e.tracks());
+                        e.setLastMeasure(nullptr);
                         s->read(e);
                         m->addExcerpt(ex);
-                        }
-                  }
-            else if (tag == "PageList") {
-                  while (e.readNextStartElement()) {
-                        if (e.name() == "Page") {
-                              Page* page = new Page(this);
-                              _pages.append(page);
-                              page->read(e);
-                              }
-                        else
-                              e.unknown();
                         }
                   }
             else if (tag == "name") {
@@ -211,13 +202,14 @@ bool Score::read(XmlReader& e)
 
       _fileDivision = MScore::division;
 
+#if 0 // TODO:barline
       //
       //    sanity check for barLineSpan
       //
       for (Staff* st : staves()) {
             int barLineSpan = st->barLineSpan();
             int idx = st->idx();
-            int n = nstaves();
+            int n   = nstaves();
             if (idx + barLineSpan > n) {
                   qDebug("bad span: idx %d  span %d staves %d", idx, barLineSpan, n);
                   // span until last staff
@@ -237,18 +229,15 @@ bool Score::read(XmlReader& e)
                   st->setBarLineSpan(barLineSpan);
                   }
             // check spanFrom
-            int minBarLineFrom = st->lines() == 1 ? BARLINE_SPAN_1LINESTAFF_FROM : MIN_BARLINE_SPAN_FROMTO;
+            int minBarLineFrom = st->lines(0) == 1 ? BARLINE_SPAN_1LINESTAFF_FROM : MIN_BARLINE_SPAN_FROMTO;
             if (st->barLineFrom() < minBarLineFrom)
                   st->setBarLineFrom(minBarLineFrom);
-            if (st->barLineFrom() > st->lines() * 2)
-                  st->setBarLineFrom(st->lines() * 2);
+            if (st->barLineFrom() > st->lines(0) * 2)
+                  st->setBarLineFrom(st->lines(0) * 2);
             // check spanTo
             Staff* stTo = st->barLineSpan() <= 1 ? st : staff(idx + st->barLineSpan() - 1);
             // 1-line staves have special bar line spans
-            int maxBarLineTo        = stTo->lines() == 1 ? BARLINE_SPAN_1LINESTAFF_TO : stTo->lines()*2;
-            int defaultBarLineTo    = stTo->lines() == 1 ? BARLINE_SPAN_1LINESTAFF_TO : (stTo->lines() - 1) * 2;
-            if (st->barLineTo() == UNKNOWN_BARLINE_TO)
-                  st->setBarLineTo(defaultBarLineTo);
+            int maxBarLineTo        = stTo->lines(0) == 1 ? BARLINE_SPAN_1LINESTAFF_TO : stTo->lines(0) * 2;
             if (st->barLineTo() < MIN_BARLINE_SPAN_FROMTO)
                   st->setBarLineTo(MIN_BARLINE_SPAN_FROMTO);
             if (st->barLineTo() > maxBarLineTo)
@@ -257,10 +246,11 @@ bool Score::read(XmlReader& e)
             if (st->barLineSpan() == 1) {
                   if (st->barLineTo() - st->barLineFrom() < MIN_BARLINE_FROMTO_DIST) {
                         st->setBarLineFrom(0);
-                        st->setBarLineTo(defaultBarLineTo);
+                        st->setBarLineTo(0);
                         }
                   }
             }
+#endif
 
       if (!masterScore()->omr())
             masterScore()->setShowOmr(false);
@@ -273,11 +263,47 @@ bool Score::read(XmlReader& e)
       }
 
 //---------------------------------------------------------
+//   read
+//---------------------------------------------------------
+
+bool MasterScore::read(XmlReader& e)
+      {
+      if (!Score::read(e))
+            return false;
+      int id = 1;
+      for (LinkedElements* le : e.linkIds())
+            le->setLid(this, id++);
+      for (Staff* s : staves())
+            s->updateOttava();
+      setCreated(false);
+      return true;
+      }
+
+//---------------------------------------------------------
+//   addMovement
+//---------------------------------------------------------
+
+void MasterScore::addMovement(MasterScore* score)
+      {
+      score->_movements = _movements;
+      _movements->push_back(score);
+      MasterScore* ps = 0;
+      for (MasterScore* s : *_movements) {
+            s->setPrev(ps);
+            if (ps)
+                  ps->setNext(s);
+            s->setNext(0);
+            ps = s;
+            }
+      }
+
+//---------------------------------------------------------
 //   read300
 //---------------------------------------------------------
 
 Score::FileError MasterScore::read300(XmlReader& e)
       {
+      bool top = true;
       while (e.readNextStartElement()) {
             const QStringRef& tag(e.name());
             if (tag == "programVersion") {
@@ -287,7 +313,17 @@ Score::FileError MasterScore::read300(XmlReader& e)
             else if (tag == "programRevision")
                   setMscoreRevision(e.readInt());
             else if (tag == "Score") {
-                  if (!read(e))
+printf("===read score -- top %d\n", top);
+                  MasterScore* score;
+                  if (top) {
+                        score = this;
+                        top   = false;
+                        }
+                  else {
+                        score = new MasterScore();
+                        addMovement(score);
+                        }
+                  if (!score->read(e))
                         return FileError::FILE_BAD_FORMAT;
                   }
             else if (tag == "Revision") {
@@ -296,15 +332,6 @@ Score::FileError MasterScore::read300(XmlReader& e)
                   revisions()->add(revision);
                   }
             }
-
-      int id = 1;
-      for (LinkedElements* le : e.linkIds())
-            le->setLid(this, id++);
-
-      for (Staff* s : staves())
-            s->updateOttava();
-
-      setCreated(false);
       return FileError::FILE_NO_ERROR;
       }
 

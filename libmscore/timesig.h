@@ -18,8 +18,6 @@
 #include "mscore.h"
 #include "groups.h"
 
-class QPainter;
-
 namespace Ms {
 
 class MuseScoreView;
@@ -77,7 +75,7 @@ class TimeSig : public Element {
       void setSSig(const QString&);
 
       virtual TimeSig* clone() const override;
-      virtual Element::Type type() const override        { return Element::Type::TIMESIG; }
+      virtual ElementType type() const override        { return ElementType::TIMESIG; }
 
       TimeSigType timeSigType() const    { return _timeSigType; }
 
@@ -85,7 +83,7 @@ class TimeSig : public Element {
 
       virtual qreal mag() const override;
       virtual void draw(QPainter*) const override;
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter& xml) const override;
       virtual void read(XmlReader&) override;
       virtual void layout() override;
 

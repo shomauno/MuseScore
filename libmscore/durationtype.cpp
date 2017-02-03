@@ -294,7 +294,7 @@ void TDuration::shiftType(int v)
             setType(DurationType::V_INVALID);
       else {
             int newValue = int(_val) + v;
-            if ((newValue < int(DurationType::V_LONG)) || (newValue > int(DurationType::V_128TH)))
+            if ((newValue < int(DurationType::V_LONG)) || (newValue > int(DurationType::V_1024TH)))
                   setType(DurationType::V_INVALID);
             else
                   setType(DurationType(newValue));
@@ -399,6 +399,9 @@ Fraction TDuration::fraction() const
 // Longest TDuration that fits into Fraction. Must fit exactly if truncate = false.
 TDuration::TDuration(const Fraction& l, bool truncate, int maxDots, DurationType maxType)
       {
+#ifdef NDEBUG
+      Q_UNUSED(truncate);
+#endif
       setType(maxType); // use maxType to avoid testing all types if you know that l is smaller than a certain DurationType
       setDots(maxDots);
       truncateToFraction(l, maxDots);
@@ -788,5 +791,18 @@ void TDuration::setType(DurationType t)
       if (_val == DurationType::V_MEASURE)
             _dots = 0;
       }
+
+//---------------------------------------------------------
+//   isValid
+//---------------------------------------------------------
+
+bool TDuration::isValid(Fraction f)
+     {
+     TDuration t;
+     t.setType(DurationType::V_LONG);
+     t.setDots(4);
+     t.truncateToFraction(f, 4);
+     return ((t.fraction() - f).numerator() == 0);
+     }
 }
 

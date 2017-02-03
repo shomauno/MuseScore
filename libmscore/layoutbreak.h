@@ -15,8 +15,6 @@
 
 #include "element.h"
 
-class QPainter;
-
 namespace Ms {
 
 // layout break subtypes:
@@ -56,7 +54,7 @@ class LayoutBreak : public Element {
       LayoutBreak(const LayoutBreak&);
       virtual LayoutBreak* clone() const override { return new LayoutBreak(*this); }
 
-      virtual Element::Type type() const override { return Element::Type::LAYOUT_BREAK; }
+      virtual ElementType type() const override { return ElementType::LAYOUT_BREAK; }
       virtual bool systemFlag() const override    { return true;  }
 
       void setLayoutBreakType(Type);
@@ -65,7 +63,7 @@ class LayoutBreak : public Element {
 
       virtual bool acceptDrop(const DropData&) const override;
       virtual Element* drop(const DropData&) override;
-      virtual void write(Xml&) const override;
+      virtual void write(XmlWriter&) const override;
       virtual void read(XmlReader&) override;
 
       Measure* measure() const            { return (Measure*)parent();   }

@@ -122,6 +122,7 @@ void DrumTools::updateDrumset(const Drumset* ds)
             chord->setUp(up);
             chord->setTrack(voice);
             Note* note = new Note(gscore);
+            note->setMark(true);
             note->setParent(chord);
             note->setTrack(voice);
             note->setPitch(pitch);
@@ -181,7 +182,7 @@ void DrumTools::editDrumset()
 void DrumTools::drumNoteSelected(int val)
       {
       Element* element = drumPalette->element(val);
-      if (element && element->type() == Element::Type::CHORD) {
+      if (element && element->type() == ElementType::CHORD) {
             Chord* ch        = static_cast<Chord*>(element);
             Note* note       = ch->downNote();
             int ticks        = MScore::defaultPlayDuration;
@@ -205,7 +206,7 @@ int DrumTools::selectedDrumNote()
       if (idx < 0)
             return -1;
       Element* element = drumPalette->element(idx);
-      if (element && element->type() == Element::Type::CHORD) {
+      if (element && element->type() == ElementType::CHORD) {
             Chord* ch  = static_cast<Chord*>(element);
             Note* note = ch->downNote();
             return note->pitch();

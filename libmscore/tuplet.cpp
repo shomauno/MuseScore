@@ -35,9 +35,9 @@ Tuplet::Tuplet(Score* s)
       {
       setFlags(ElementFlag::MOVABLE | ElementFlag::SELECTABLE);
 
-      _direction    = score()->style(StyleIdx::tupletDirection).value<Direction>();
-      _numberType   = NumberType(score()->style(StyleIdx::tupletNumberType).toInt());
-      _bracketType  = BracketType(score()->style(StyleIdx::tupletBracketType).toInt());
+      _direction    = score()->styleV(StyleIdx::tupletDirection).value<Direction>();
+      _numberType   = NumberType(score()->styleI(StyleIdx::tupletNumberType));
+      _bracketType  = BracketType(score()->styleI(StyleIdx::tupletBracketType));
 
       _ratio        = Fraction(1, 1);
       _number       = 0;
@@ -116,14 +116,13 @@ void Tuplet::layout()
             return;
             }
       // is in a TAB without stems, skip any format: tuplets are not shown
-      if (staff() && staff()->isTabStaff() && staff()->staffType()->slashStyle())
+      if (staff() && staff()->isTabStaff(tick()) && staff()->staffType(tick())->slashStyle())
             return;
 
       qreal _spatium = spatium();
       if (_numberType != NumberType::NO_TEXT) {
             if (_number == 0) {
-                  _number = new Text(score());
-                  _number->setTextStyleType(TextStyleType::TUPLET);
+                  _number = new Text(SubStyle::TUPLET, score());
                   _number->setTrack(track());
                   _number->setParent(this);
                   _number->setVisible(visible());
@@ -582,7 +581,7 @@ void Tuplet::layout()
 void Tuplet::draw(QPainter* painter) const
       {
       // if in a TAB without stems, tuplets are not shown
-      if (staff() && staff()->isTabStaff() && staff()->staffType()->slashStyle())
+      if (staff() && staff()->isTabStaff(tick()) && staff()->staffType(tick())->slashStyle())
             return;
 
       QColor color(curColor());
@@ -619,7 +618,7 @@ void Tuplet::scanElements(void* data, void (*func)(void*, Element*), bool all)
 //   write
 //---------------------------------------------------------
 
-void Tuplet::write(Xml& xml) const
+void Tuplet::write(XmlWriter& xml) const
       {
       xml.stag(QString("Tuplet id=\"%1\"").arg(_id));
       if (tuplet())
@@ -651,60 +650,50 @@ void Tuplet::write(Xml& xml) const
 
 void Tuplet::read(XmlReader& e)
       {
-      int bl = -1;
       _id    = e.intAttribute("id", 0);
-
       while (e.readNextStartElement()) {
-            const QStringRef& tag(e.name());
-
-            if (tag == "direction")
-                  readProperty(e, P_ID::DIRECTION);
-            else if (tag == "numberType")
-                  _numberType = NumberType(e.readInt());
-            else if (tag == "bracketType")
-                  _bracketType = BracketType(e.readInt());
-            else if (tag == "normalNotes")
-                  _ratio.setDenominator(e.readInt());
-            else if (tag == "actualNotes")
-                  _ratio.setNumerator(e.readInt());
-            else if (tag == "p1")
-                  _p1 = e.readPoint();
-            else if (tag == "p2")
-                  _p2 = e.readPoint();
-            else if (tag == "baseNote")
-                  _baseLen = TDuration(e.readElementText());
-            else if (tag == "Number") {
-                  _number = new Text(score());
-                  _number->setParent(this);
-                  _number->read(e);
-                  _number->setTextStyleType(TextStyleType::TUPLET);
-                  _number->setVisible(visible());     //?? override saved property
-                  _number->setTrack(track());
-                  }
-            else if (tag == "subtype")    // obsolete
-                  e.skipCurrentElement();
-            else if (tag == "hasNumber")             // obsolete
-                  _numberType = e.readInt() ? NumberType::SHOW_NUMBER : NumberType::NO_TEXT;
-            else if (tag == "hasLine") {          // obsolete
-                  _hasBracket = e.readInt();
-                  _bracketType = BracketType::AUTO_BRACKET;
-                  }
-            else if (tag == "baseLen")            // obsolete
-                  bl = e.readInt();
-            else if (!DurationElement::readProperties(e))
+            if (readProperties(e))
+                  ;
+            else
                   e.unknown();
             }
-      Fraction f(_ratio.reduced().denominator(), _baseLen.fraction().denominator());
-      setDuration(f);
-      if (bl != -1) {         // obsolete
-            TDuration d;
-            d.setVal(bl);
-            _baseLen = d;
-// qDebug("Tuplet base len %d/%d", d.fraction().numerator(), d.fraction().denominator());
-// qDebug("   %s  dots %d, %d/%d", qPrintable(d.name()), d.dots(), _ratio.numerator(), _ratio.denominator());
-            d.setVal(bl * _ratio.denominator());
-            setDuration(d.fraction());
+      Fraction f(_ratio.denominator(), _baseLen.fraction().denominator());
+      setDuration(f.reduced());
+      }
+
+//---------------------------------------------------------
+//   readProperties
+//---------------------------------------------------------
+
+bool Tuplet::readProperties(XmlReader& e)
+      {
+      const QStringRef& tag(e.name());
+      if (readProperty(tag, e, P_ID::DIRECTION))
+            ;
+      else if (tag == "numberType")
+            _numberType = NumberType(e.readInt());
+      else if (tag == "bracketType")
+            _bracketType = BracketType(e.readInt());
+      else if (tag == "normalNotes")
+            _ratio.setDenominator(e.readInt());
+      else if (tag == "actualNotes")
+            _ratio.setNumerator(e.readInt());
+      else if (tag == "p1")
+            _p1 = e.readPoint();
+      else if (tag == "p2")
+            _p2 = e.readPoint();
+      else if (tag == "baseNote")
+            _baseLen = TDuration(e.readElementText());
+      else if (tag == "Number") {
+            _number = new Text(SubStyle::TUPLET, score());
+            _number->setParent(this);
+            _number->read(e);
+            _number->setVisible(visible());     //?? override saved property
+            _number->setTrack(track());
             }
+      else if (!DurationElement::readProperties(e))
+            return false;
+      return true;
       }
 
 //---------------------------------------------------------
@@ -716,21 +705,21 @@ void Tuplet::add(Element* e)
 #ifndef NDEBUG
       for(DurationElement* el : _elements) {
             if (el == e) {
-                  qDebug("%p Tuplet::add: %p %s already there", this, e, e->name());
+                  qDebug("%p: %p %s already there", this, e, e->name());
                   return;
                   }
             }
 #endif
 
       switch (e->type()) {
-            case Element::Type::TEXT:
-                  _number = static_cast<Text*>(e);
+            case ElementType::TEXT:
+                  _number = toText(e);
                   break;
-            case Element::Type::CHORD:
-            case Element::Type::REST:
-            case Element::Type::TUPLET: {
+            case ElementType::CHORD:
+            case ElementType::REST:
+            case ElementType::TUPLET: {
                   bool found = false;
-                  DurationElement* de = static_cast<DurationElement*>(e);
+                  DurationElement* de = toDurationElement(e);
                   int tick = de->tick();
                   if (tick != -1) {
                         for (unsigned int i = 0; i < _elements.size(); ++i) {
@@ -744,10 +733,6 @@ void Tuplet::add(Element* e)
                   if (!found)
                         _elements.push_back(de);
                   de->setTuplet(this);
-
-                  // the tick position of a tuplet is the tick position of its
-                  // first element:
-                  setTick(_elements.front()->tick());
                   }
                   break;
 
@@ -764,13 +749,13 @@ void Tuplet::add(Element* e)
 void Tuplet::remove(Element* e)
       {
       switch (e->type()) {
-            case Element::Type::TEXT:
+            case ElementType::TEXT:
                   if (e == _number)
                         _number = 0;
                   break;
-            case Element::Type::CHORD:
-            case Element::Type::REST:
-            case Element::Type::TUPLET: {
+            case ElementType::CHORD:
+            case ElementType::REST:
+            case ElementType::TUPLET: {
                   auto i = std::find(_elements.begin(), _elements.end(), static_cast<DurationElement*>(e));
                   if (i == _elements.end()) {
                         qDebug("Tuplet::remove: cannot find element <%s>", e->name());
@@ -827,12 +812,12 @@ void Tuplet::updateGrips(Grip* defaultGrip, QVector<QRectF>& grip) const
 
 void Tuplet::reset()
       {
-      if (directionStyle == PropertyStyle::UNSTYLED)
-            undoChangeProperty(P_ID::DIRECTION, propertyDefault(P_ID::DIRECTION), PropertyStyle::STYLED);
-      if (numberStyle == PropertyStyle::UNSTYLED)
-            undoChangeProperty(P_ID::NUMBER_TYPE, propertyDefault(P_ID::NUMBER_TYPE), PropertyStyle::STYLED);
-      if (bracketStyle == PropertyStyle::UNSTYLED)
-            undoChangeProperty(P_ID::BRACKET_TYPE, propertyDefault(P_ID::BRACKET_TYPE), PropertyStyle::STYLED);
+      if (directionStyle == PropertyFlags::UNSTYLED)
+            undoChangeProperty(P_ID::DIRECTION, propertyDefault(P_ID::DIRECTION), PropertyFlags::STYLED);
+      if (numberStyle == PropertyFlags::UNSTYLED)
+            undoChangeProperty(P_ID::NUMBER_TYPE, propertyDefault(P_ID::NUMBER_TYPE), PropertyFlags::STYLED);
+      if (bracketStyle == PropertyFlags::UNSTYLED)
+            undoChangeProperty(P_ID::BRACKET_TYPE, propertyDefault(P_ID::BRACKET_TYPE), PropertyFlags::STYLED);
 
       score()->addRefresh(canvasBoundingRect());
 
@@ -933,15 +918,15 @@ bool Tuplet::setProperty(P_ID propertyId, const QVariant& v)
       {
       switch (propertyId) {
             case P_ID::DIRECTION:
-                  directionStyle = PropertyStyle::UNSTYLED;
+                  directionStyle = PropertyFlags::UNSTYLED;
                   setDirection(v.value<Direction>());
                   break;
             case P_ID::NUMBER_TYPE:
-                  numberStyle = PropertyStyle::UNSTYLED;
+                  numberStyle = PropertyFlags::UNSTYLED;
                   setNumberType(NumberType(v.toInt()));
                   break;
             case P_ID::BRACKET_TYPE:
-                  bracketStyle = PropertyStyle::UNSTYLED;
+                  bracketStyle = PropertyFlags::UNSTYLED;
                   setBracketType(BracketType(v.toInt()));
                   break;
             case P_ID::NORMAL_NOTES:
@@ -974,11 +959,11 @@ QVariant Tuplet::propertyDefault(P_ID id) const
       {
       switch(id) {
             case P_ID::DIRECTION:
-                  return score()->style(StyleIdx::tupletDirection);
+                  return score()->styleV(StyleIdx::tupletDirection);
             case P_ID::NUMBER_TYPE:
-                  return score()->style(StyleIdx::tupletNumberType);
+                  return score()->styleV(StyleIdx::tupletNumberType);
             case P_ID::BRACKET_TYPE:
-                  return score()->style(StyleIdx::tupletBracketType);
+                  return score()->styleV(StyleIdx::tupletBracketType);
             case P_ID::NORMAL_NOTES:
             case P_ID::ACTUAL_NOTES:
                   return 0;
@@ -991,10 +976,10 @@ QVariant Tuplet::propertyDefault(P_ID id) const
       }
 
 //---------------------------------------------------------
-//   propertyStyle
+//   propertyFlags
 //---------------------------------------------------------
 
-PropertyStyle Tuplet::propertyStyle(P_ID id) const
+PropertyFlags Tuplet::propertyFlags(P_ID id) const
       {
       switch (id) {
             case P_ID::DIRECTION:
@@ -1007,9 +992,9 @@ PropertyStyle Tuplet::propertyStyle(P_ID id) const
             case P_ID::ACTUAL_NOTES:
             case P_ID::P1:
             case P_ID::P2:
-                  return PropertyStyle::NOSTYLE;
+                  return PropertyFlags::NOSTYLE;
             default:
-                  return DurationElement::propertyStyle(id);
+                  return DurationElement::propertyFlags(id);
             }
       }
 
@@ -1041,15 +1026,15 @@ void Tuplet::resetProperty(P_ID id)
       switch (id) {
             case P_ID::DIRECTION:
                   setProperty(id, propertyDefault(id));
-                  directionStyle = PropertyStyle::STYLED;
+                  directionStyle = PropertyFlags::STYLED;
                   break;
             case P_ID::NUMBER_TYPE:
                   setProperty(id, propertyDefault(id));
-                  numberStyle = PropertyStyle::STYLED;
+                  numberStyle = PropertyFlags::STYLED;
                   break;
             case P_ID::BRACKET_TYPE:
                   setProperty(id, propertyDefault(id));
-                  bracketStyle = PropertyStyle::STYLED;
+                  bracketStyle = PropertyFlags::STYLED;
                   break;
             case P_ID::NORMAL_NOTES:
             case P_ID::ACTUAL_NOTES:
@@ -1070,11 +1055,11 @@ void Tuplet::resetProperty(P_ID id)
 
 void Tuplet::styleChanged()
       {
-      if (directionStyle == PropertyStyle::STYLED)
-            setDirection(score()->style(StyleIdx::tupletDirection).value<Direction>());
-      if (numberStyle == PropertyStyle::STYLED)
+      if (directionStyle == PropertyFlags::STYLED)
+            setDirection(score()->styleV(StyleIdx::tupletDirection).value<Direction>());
+      if (numberStyle == PropertyFlags::STYLED)
             setNumberType(NumberType(score()->styleI(StyleIdx::tupletNumberType)));
-      if (bracketStyle == PropertyStyle::STYLED)
+      if (bracketStyle == PropertyFlags::STYLED)
             setBracketType(BracketType(score()->styleI(StyleIdx::tupletBracketType)));
       if (!_elements.empty()) {
             _elements.front()->triggerLayout();
@@ -1082,5 +1067,55 @@ void Tuplet::styleChanged()
             }
       }
 
+//---------------------------------------------------------
+//   sanitizeTuplet
+///    Check validity of tuplets and coherence between duration
+///    and baselength. Needed for importing old files due to a bug
+///    in the released version for corner-case tuplets.
+///    See issue #136406 and Pull request #2881
+//---------------------------------------------------------
+
+void Tuplet::sanitizeTuplet()
+      {
+      Fraction tupletDuration = duration().reduced();
+      Fraction baseLenDuration = (Fraction(ratio().denominator(),1) * baseLen().fraction()).reduced();
+      if ((tupletDuration - baseLenDuration).reduced().numerator() == 0)
+            return;
+      // Mismatch between the duration and the duration computed from the base length.
+      // A tentative will now be made to retrieve the correct duration by summing up all the
+      // durations of the elements constituting the tuplet. This does not work for
+      // not-completely filled tuplets, such as tuplets in voices > 0 with
+      // gaps (for example, a tuplet in second voice with a deleted chordrest element)
+      Fraction testDuration(0,1);
+      for (DurationElement* de : elements()) {
+            if (de == 0)
+                  continue;
+            Fraction elementDuration(0,1);
+            if (de->isTuplet()){
+                  Tuplet* t = toTuplet(de);
+                  t->sanitizeTuplet();
+                  elementDuration = t->duration();
+                  }
+            else {
+                  elementDuration = de->duration();
+                  }
+            testDuration += elementDuration;
+            }
+      testDuration = testDuration / ratio();
+      testDuration.reduce();
+      if (((testDuration - tupletDuration).reduced().numerator() != 0) || ((testDuration - baseLenDuration).reduced().numerator() != 0)) {
+            Fraction f = testDuration * Fraction(1, ratio().denominator());
+            f.reduce();
+            Fraction fbl(1, f.denominator());
+            if (TDuration::isValid(fbl)) {
+                  setDuration(testDuration);
+                  setBaseLen(fbl);
+                  qDebug("Tuplet %p sanitized",this);
+                  }
+            else {
+                  qDebug("Impossible to sanitize the tuplet");
+                  }
+            }
+      }
 }  // namespace Ms
 

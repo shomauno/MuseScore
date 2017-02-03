@@ -17,8 +17,6 @@
 #include "elementlayout.h"
 #include "instrument.h"
 
-class QPainter;
-
 namespace Ms {
 
 enum class StaffStateType : char {
@@ -50,7 +48,7 @@ class StaffState : public Element {
       ~StaffState();
 
       virtual StaffState* clone() const  { return new StaffState(*this); }
-      virtual Element::Type type() const { return Element::Type::STAFF_STATE; }
+      virtual ElementType type() const { return ElementType::STAFF_STATE; }
 
       void setStaffStateType(const QString&);
       void setStaffStateType(StaffStateType st) { _staffStateType = st; }
@@ -59,7 +57,7 @@ class StaffState : public Element {
 
       virtual bool acceptDrop(const DropData&) const override;
       virtual Element* drop(const DropData&);
-      virtual void write(Xml&) const;
+      virtual void write(XmlWriter&) const;
       virtual void read(XmlReader&);
       Instrument* instrument() const           { return _instrument; }
       void setInstrument(const Instrument* i)  { *_instrument = *i;    }

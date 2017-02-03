@@ -14,8 +14,7 @@
 #define __ARTICULATION_H__
 
 #include "element.h"
-
-class QPainter;
+#include "mscore.h"
 
 namespace Ms {
 
@@ -77,7 +76,7 @@ class Articulation : public Element {
       Articulation &operator=(const Articulation&) = delete;
 
       virtual Articulation* clone() const override   { return new Articulation(*this); }
-      virtual Element::Type type() const override    { return Element::Type::ARTICULATION; }
+      virtual ElementType type() const override    { return ElementType::ARTICULATION; }
 
       virtual qreal mag() const override;
 
@@ -91,7 +90,7 @@ class Articulation : public Element {
       virtual void layout() override;
 
       virtual void read(XmlReader&) override;
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter& xml) const override;
       virtual bool readProperties(XmlReader&) override;
 
       virtual void reset() override;
@@ -100,7 +99,7 @@ class Articulation : public Element {
       virtual QVariant getProperty(P_ID propertyId) const override;
       virtual bool setProperty(P_ID propertyId, const QVariant&) override;
       virtual QVariant propertyDefault(P_ID) const override;
-      virtual PropertyStyle propertyStyle(P_ID) const override;
+      virtual PropertyFlags propertyFlags(P_ID) const override;
       virtual void resetProperty(P_ID id) override;
       StyleIdx getPropertyStyle(P_ID id) const override;
 

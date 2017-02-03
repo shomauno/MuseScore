@@ -17,6 +17,8 @@
 
 namespace Ms {
 
+enum class SubStyle;
+
 //---------------------------------------------------------
 //   @@ Jump
 ///    Jump label
@@ -61,12 +63,12 @@ class Jump : public Text {
       QString jumpTypeUserName() const;
 
       virtual Jump* clone()          const override { return new Jump(*this); }
-      virtual Element::Type type()   const override { return Element::Type::JUMP; }
+      virtual ElementType type()   const override { return ElementType::JUMP; }
 
       Measure* measure() const         { return (Measure*)parent(); }
 
       virtual void read(XmlReader&) override;
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter& xml) const override;
 
       QString jumpTo()               const { return _jumpTo;     }
       QString playUntil()            const { return _playUntil;  }
@@ -94,7 +96,7 @@ class Jump : public Text {
 
 struct JumpTypeTable {
       Jump::Type type;
-      TextStyleType textStyleType;
+      SubStyle subStyle;
       const char* text;
       const char* jumpTo;
       const char* playUntil;

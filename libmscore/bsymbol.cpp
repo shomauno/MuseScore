@@ -43,7 +43,7 @@ BSymbol::BSymbol(const BSymbol& s)
 //   writeProperties
 //---------------------------------------------------------
 
-void BSymbol::writeProperties(Xml& xml) const
+void BSymbol::writeProperties(XmlWriter& xml) const
       {
       if (_systemFlag)
             xml.tag("systemFlag", _systemFlag);
@@ -89,7 +89,7 @@ bool BSymbol::readProperties(XmlReader& e)
 
 void BSymbol::add(Element* e)
       {
-      if (e->type() == Element::Type::SYMBOL || e->type() == Element::Type::IMAGE) {
+      if (e->type() == ElementType::SYMBOL || e->type() == ElementType::IMAGE) {
             e->setParent(this);
             _leafs.append(e);
             static_cast<BSymbol*>(e)->setZ(z() - 1);    // draw on top of parent
@@ -104,7 +104,7 @@ void BSymbol::add(Element* e)
 
 void BSymbol::remove(Element* e)
       {
-      if (e->type() == Element::Type::SYMBOL || e->type() == Element::Type::IMAGE) {
+      if (e->type() == ElementType::SYMBOL || e->type() == ElementType::IMAGE) {
             if (!_leafs.removeOne(e))
                   qDebug("BSymbol::remove: element <%s> not found", e->name());
             }
@@ -129,8 +129,8 @@ void BSymbol::scanElements(void* data, void (*func)(void*, Element*), bool all)
 
 bool BSymbol::acceptDrop(const DropData& data) const
       {
-      Element::Type type = data.element->type();
-      return type == Element::Type::SYMBOL || type == Element::Type::IMAGE;
+      ElementType type = data.element->type();
+      return type == ElementType::SYMBOL || type == ElementType::IMAGE;
       }
 
 //---------------------------------------------------------
@@ -140,7 +140,7 @@ bool BSymbol::acceptDrop(const DropData& data) const
 Element* BSymbol::drop(const DropData& data)
       {
       Element* el = data.element;
-      if (el->type() == Element::Type::SYMBOL || el->type() == Element::Type::IMAGE) {
+      if (el->type() == ElementType::SYMBOL || el->type() == ElementType::IMAGE) {
             el->setParent(this);
             QPointF p = data.pos - pagePos() - data.dragOffset;
             el->setUserOff(p);
@@ -159,7 +159,7 @@ Element* BSymbol::drop(const DropData& data)
 void BSymbol::layout()
       {
       if (staff())
-            setMag(staff()->mag());
+            setMag(staff()->mag(tick()));
       for (Element* e : _leafs)
             e->layout();
       adjustReadPos();

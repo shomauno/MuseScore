@@ -110,14 +110,14 @@ void ElementItem::init()
       {
       QString s;
       switch(el->type()) {
-            case Element::Type::PAGE:
+            case ElementType::PAGE:
                   {
                   QString no;
                   no.setNum(((Page*)el)->no()+1);
                   s = "Page-" + no;
                   }
                   break;
-            case Element::Type::MEASURE:
+            case ElementType::MEASURE:
                   {
                   QString no;
                   no.setNum(((Measure*)el)->no()+1);
@@ -142,7 +142,7 @@ Debugger::Debugger(QWidget* parent)
       setupUi(this);
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
-      for (int i = 0; i < int(Element::Type::MAXTYPE); ++i)
+      for (int i = 0; i < int(ElementType::MAXTYPE); ++i)
             elementViews[i] = 0;
       curElement   = 0;
       cs           = 0;
@@ -262,7 +262,7 @@ static void addMeasureBaseToList(ElementItem* mi, MeasureBase* mb)
       {
       foreach(Element* e, mb->el()) {
             ElementItem* mmi = new ElementItem(mi, e);
-            if (e->type() == Element::Type::HBOX || e->type() == Element::Type::VBOX)
+            if (e->type() == ElementType::HBOX || e->type() == ElementType::VBOX)
                   addMeasureBaseToList(mmi, static_cast<MeasureBase*>(e));
             }
       }
@@ -316,7 +316,7 @@ static void addChord(ElementItem* sei, Chord* chord)
                   new ElementItem(ni, note->accidental());
                   }
             for (Element* f : note->el()) {
-                  if (f->type() == Element::Type::SYMBOL || f->type() == Element::Type::IMAGE) {
+                  if (f->type() == ElementType::SYMBOL || f->type() == ElementType::IMAGE) {
                         BSymbol* bs = static_cast<BSymbol*>(f);
                         addSymbol(ni, bs);
                         }
@@ -340,7 +340,7 @@ static void addChord(ElementItem* sei, Chord* chord)
             }
       for (Element* e : chord->el()) {
             ElementItem* ei = new ElementItem(sei, e);
-            if (e->type() == Element::Type::SLUR) {
+            if (e->type() == ElementType::SLUR) {
                   Slur* gs = static_cast<Slur*>(e);
                   for (SpannerSegment* sp : gs->spannerSegments())
                         new ElementItem(ei, sp);
@@ -372,13 +372,13 @@ void Debugger::addMeasure(ElementItem* mi, Measure* measure)
       {
       int staves = cs->nstaves();
       int tracks = staves * VOICES;
-      foreach (MStaff* ms, measure->mstaves()) {
-            if (ms->_vspacerUp)
-                  new ElementItem(mi, ms->_vspacerUp);
-            if (ms->_vspacerDown)
-                  new ElementItem(mi, ms->_vspacerDown);
-            if (ms->noText())
-                  new ElementItem(mi, ms->noText());
+      for (int staffIdx = 0; staffIdx < measure->score()->nstaves(); ++staffIdx) {
+            if (measure->vspacerUp(staffIdx))
+                  new ElementItem(mi, measure->vspacerUp(staffIdx));
+            if (measure->vspacerDown(staffIdx))
+                  new ElementItem(mi, measure->vspacerDown(staffIdx));
+            if (measure->noText(staffIdx))
+                  new ElementItem(mi, measure->noText(staffIdx));
             }
       for (Segment* segment = measure->first(); segment; segment = segment->next()) {
             ElementItem* segItem = new ElementItem(mi, segment);
@@ -387,7 +387,7 @@ void Debugger::addMeasure(ElementItem* mi, Measure* measure)
                   if (!e)
                         continue;
                   ElementItem* sei = new ElementItem(segItem, e);
-                  if (e->type() == Element::Type::CHORD)
+                  if (e->type() == ElementType::CHORD)
                         addChord(sei, static_cast<Chord*>(e));
                   else if (e->isChordRest()) {
                         ChordRest* cr = static_cast<ChordRest*>(e);
@@ -406,9 +406,9 @@ void Debugger::addMeasure(ElementItem* mi, Measure* measure)
                   }
 
             foreach(Element* s, segment->annotations()) {
-                  if (s->type() == Element::Type::SYMBOL || s->type() == Element::Type::IMAGE)
+                  if (s->type() == ElementType::SYMBOL || s->type() == ElementType::IMAGE)
                         addBSymbol(segItem, static_cast<BSymbol*>(s));
-                  else if (s->type() == Element::Type::FRET_DIAGRAM) {
+                  else if (s->type() == ElementType::FRET_DIAGRAM) {
                         ElementItem* fdi = new ElementItem(segItem, s);
                         FretDiagram* fd = static_cast<FretDiagram*>(s);
                         if (fd->harmony())
@@ -438,11 +438,21 @@ void Debugger::updateList(Score* s)
       if (!isVisible())
             return;
 
-      QTreeWidgetItem* li = new QTreeWidgetItem(list, int(Element::Type::INVALID));
+      if (s->masterScore()->movements()) {
+            QTreeWidgetItem* mi = new QTreeWidgetItem(list, int(ElementType::INVALID));
+            mi->setText(0, "Movements");
+            for (MasterScore* ms : *s->masterScore()->movements()) {
+                  QTreeWidgetItem* s = new QTreeWidgetItem(mi, int(ElementType::INVALID));
+                  s->setText(0, ms->metaTag("movementTitle"));
+                  }
+            }
+
+
+      QTreeWidgetItem* li = new QTreeWidgetItem(list, int(ElementType::INVALID));
       li->setText(0, "Global");
       for (auto i : s->spanner()) {
             ElementItem* it = new ElementItem(li, i.second);
-            if (i.second->type() == Element::Type::TRILL) {
+            if (i.second->type() == ElementType::TRILL) {
                   Trill* trill = static_cast<Trill*>(i.second);
                   if (trill->accidental())
                         new ElementItem(it, trill->accidental());
@@ -471,7 +481,7 @@ void Debugger::updateList(Score* s)
                         ElementItem* mi = new ElementItem(si, mb);
                         addMeasureBaseToList(mi, mb);
 
-                        if (mb->type() != Element::Type::MEASURE)
+                        if (mb->type() != ElementType::MEASURE)
                               continue;
                         Measure* measure = (Measure*) mb;
                         if (cs->styleB(StyleIdx::concertPitch)) {
@@ -557,7 +567,7 @@ void Debugger::itemClicked(QTreeWidgetItem* i, int)
       {
       if (i == 0)
             return;
-      if (i->type() == int(Element::Type::INVALID))
+      if (i->type() == int(ElementType::INVALID))
             return;
       Element* el = static_cast<ElementItem*>(i)->element();
       if (curElement) {
@@ -595,65 +605,65 @@ void Debugger::updateElement(Element* el)
                   }
             }
       if (!found)
-            qDebug("Debugger: element not found %s\n", el->name());
+            qDebug("Debugger: element not found %s", el->name());
 
       setWindowTitle(QString("MuseScore: Debugger: ") + el->name());
 
       ShowElementBase* ew = elementViews[int(el->type())];
       if (ew == 0) {
             switch (el->type()) {
-                  case Element::Type::PAGE:             ew = new ShowPageWidget;      break;
-                  case Element::Type::SYSTEM:           ew = new SystemView;          break;
-                  case Element::Type::MEASURE:          ew = new MeasureView;         break;
-                  case Element::Type::CHORD:            ew = new ChordDebug;          break;
-                  case Element::Type::NOTE:             ew = new ShowNoteWidget;      break;
-                  case Element::Type::REPEAT_MEASURE:
-                  case Element::Type::REST:             ew = new RestView;            break;
-                  case Element::Type::CLEF:             ew = new ClefView;            break;
-                  case Element::Type::TIMESIG:          ew = new TimeSigView;         break;
-                  case Element::Type::KEYSIG:           ew = new KeySigView;          break;
-                  case Element::Type::SEGMENT:          ew = new SegmentView;         break;
-                  case Element::Type::HAIRPIN:          ew = new HairpinView;         break;
-                  case Element::Type::BAR_LINE:         ew = new BarLineView;         break;
-                  case Element::Type::DYNAMIC:          ew = new DynamicView;         break;
-                  case Element::Type::TUPLET:           ew = new TupletView;          break;
-                  case Element::Type::SLUR:             ew = new SlurTieView;         break;
-                  case Element::Type::TIE:              ew = new TieView;             break;
-                  case Element::Type::VOLTA:            ew = new VoltaView;           break;
-                  case Element::Type::VOLTA_SEGMENT:    ew = new VoltaSegmentView;    break;
-                  case Element::Type::PEDAL:
-                  case Element::Type::TEXTLINE:         ew = new TextLineView;        break;
-                  case Element::Type::PEDAL_SEGMENT:
-                  case Element::Type::TEXTLINE_SEGMENT: ew = new TextLineSegmentView; break;
-                  case Element::Type::LYRICS:           ew = new LyricsView;          break;
-                  case Element::Type::BEAM:             ew = new BeamView;            break;
-                  case Element::Type::TREMOLO:          ew = new TremoloView;         break;
-                  case Element::Type::OTTAVA:           ew = new OttavaView;          break;
-                  case Element::Type::OTTAVA_SEGMENT:   ew = new TextLineSegmentView; break;
-                  case Element::Type::SLUR_SEGMENT:     ew = new SlurSegmentView;     break;
-                  case Element::Type::ACCIDENTAL:       ew = new AccidentalView;      break;
-                  case Element::Type::ARTICULATION:     ew = new ArticulationView;    break;
-                  case Element::Type::STEM:             ew = new StemView;            break;
-                  case Element::Type::VBOX:
-                  case Element::Type::HBOX:
-                  case Element::Type::FBOX:
-                  case Element::Type::TBOX:             ew = new BoxView;             break;
-                  case Element::Type::TRILL:            ew = new SpannerView;         break;
+                  case ElementType::PAGE:             ew = new ShowPageWidget;      break;
+                  case ElementType::SYSTEM:           ew = new SystemView;          break;
+                  case ElementType::MEASURE:          ew = new MeasureView;         break;
+                  case ElementType::CHORD:            ew = new ChordDebug;          break;
+                  case ElementType::NOTE:             ew = new ShowNoteWidget;      break;
+                  case ElementType::REST:             ew = new RestView;            break;
+                  case ElementType::CLEF:             ew = new ClefView;            break;
+                  case ElementType::TIMESIG:          ew = new TimeSigView;         break;
+                  case ElementType::KEYSIG:           ew = new KeySigView;          break;
+                  case ElementType::SEGMENT:          ew = new SegmentView;         break;
+                  case ElementType::HAIRPIN:          ew = new HairpinView;         break;
+                  case ElementType::BAR_LINE:         ew = new BarLineView;         break;
+                  case ElementType::DYNAMIC:          ew = new DynamicView;         break;
+                  case ElementType::TUPLET:           ew = new TupletView;          break;
+                  case ElementType::SLUR:             ew = new SlurTieView;         break;
+                  case ElementType::TIE:              ew = new TieView;             break;
+                  case ElementType::VOLTA:            ew = new VoltaView;           break;
+                  case ElementType::VOLTA_SEGMENT:    ew = new VoltaSegmentView;    break;
+                  case ElementType::PEDAL:
+                  case ElementType::TEXTLINE:         ew = new TextLineView;        break;
+                  case ElementType::PEDAL_SEGMENT:
+                  case ElementType::TEXTLINE_SEGMENT: ew = new TextLineSegmentView; break;
+                  case ElementType::LYRICS:           ew = new LyricsView;          break;
+                  case ElementType::BEAM:             ew = new BeamView;            break;
+                  case ElementType::TREMOLO:          ew = new TremoloView;         break;
+                  case ElementType::OTTAVA:           ew = new OttavaView;          break;
+                  case ElementType::OTTAVA_SEGMENT:   ew = new TextLineSegmentView; break;
+                  case ElementType::SLUR_SEGMENT:     ew = new SlurSegmentView;     break;
+                  case ElementType::TIE_SEGMENT:      ew = new TieSegmentView;     break;
+                  case ElementType::ACCIDENTAL:       ew = new AccidentalView;      break;
+                  case ElementType::ARTICULATION:     ew = new ArticulationView;    break;
+                  case ElementType::STEM:             ew = new StemView;            break;
+                  case ElementType::VBOX:
+                  case ElementType::HBOX:
+                  case ElementType::FBOX:
+                  case ElementType::TBOX:             ew = new BoxView;             break;
+                  case ElementType::TRILL:            ew = new SpannerView;         break;
 
-                  case Element::Type::INSTRUMENT_NAME:
-                  case Element::Type::FINGERING:
-                  case Element::Type::MARKER:
-                  case Element::Type::JUMP:
-                  case Element::Type::TEXT:
-                  case Element::Type::STAFF_TEXT:
-                  case Element::Type::REHEARSAL_MARK:
+                  case ElementType::INSTRUMENT_NAME:
+                  case ElementType::FINGERING:
+                  case ElementType::MARKER:
+                  case ElementType::JUMP:
+                  case ElementType::TEXT:
+                  case ElementType::STAFF_TEXT:
+                  case ElementType::REHEARSAL_MARK:
                         ew = new TextView;
                         break;
-                  case Element::Type::HARMONY:
+                  case ElementType::HARMONY:
                         ew = new HarmonyView;
                         break;
-                  case Element::Type::TRILL_SEGMENT:
-                  case Element::Type::HAIRPIN_SEGMENT:
+                  case ElementType::TRILL_SEGMENT:
+                  case ElementType::HAIRPIN_SEGMENT:
                         ew = new LineSegmentView; break;
                         break;
                   default:
@@ -766,7 +776,7 @@ void MeasureView::setElement(Element* e)
       ShowElementBase::setElement(e);
 
       mb.segments->setValue(m->size());
-      mb.staves->setValue(m->mstaves().size());
+//      mb.staves->setValue(m->mstaves().size());
       mb.measureNo->setValue(m->no());
       mb.noOffset->setValue(m->noOffset());
       mb.stretch->setValue(m->userStretch());
@@ -782,8 +792,8 @@ void MeasureView::setElement(Element* e)
       mb.tick->setValue(m->tick());
       mb.startRepeat->setChecked(m->repeatStart());
       mb.endRepeat->setChecked(m->repeatEnd());
-      mb.hasSystemHeader->setChecked(m->hasSystemHeader());
-      mb.hasSystemTrailer->setChecked(m->hasSystemTrailer());
+      mb.hasSystemHeader->setChecked(m->header());
+      mb.hasSystemTrailer->setChecked(m->trailer());
       mb.hasCourtesyKeySig->setChecked(m->hasCourtesyKeySig());
       mb.hasVoices->setChecked(m->hasVoices(0));
       mb.sel->clear();
@@ -845,6 +855,7 @@ void SegmentView::setElement(Element* e)
       sb.ticks->setValue(ticks);
       sb.tick->setValue(s->tick());
       sb.rtick->setValue(s->rtick());
+      sb.ticks2->setValue(s->ticks());
       sb.segmentType->setText(s->subTypeName());
       sb.lyrics->clear();
 
@@ -1350,19 +1361,15 @@ void TextView::textChanged()
 
 void TextView::setElement(Element* e)
       {
-      Text* te = (Text*)e;
+      Text* te = static_cast<Text*>(e);
 
-      tb.textStyle->clear();
-      for (int i = 0; i < int(TextStyleType::TEXT_STYLES); ++i)
-            tb.textStyle->addItem(e->score()->textStyle(TextStyleType(i)).name());
+      tb.subStyle->setText(subStyleName(te->subStyle()));
 
-      TextStyle ts = te->textStyle();
       ShowElementBase::setElement(e);
       tb.text->setPlainText(te->xmlText());
-      tb.xoffset->setValue(ts.offset().x());
-      tb.yoffset->setValue(ts.offset().y());
-      tb.offsetType->setCurrentIndex(int(ts.offsetType()));
-      tb.textStyle->setCurrentIndex(int(te->textStyleType()));
+      tb.xoffset->setValue(te->offset().x());
+      tb.yoffset->setValue(te->offset().y());
+      tb.offsetType->setCurrentIndex(int(te->offsetType()));
       tb.layoutToParentWidth->setChecked(te->layoutToParentWidth());
       }
 
@@ -1384,13 +1391,14 @@ HarmonyView::HarmonyView()
 //   setElement
 //---------------------------------------------------------
 
-void HarmonyView::setElement(Element* e)
+void HarmonyView::setElement(Element* /*e*/)
       {
+#if 0
       Harmony* harmony = (Harmony*)e;
 
-      tb.textStyle->clear();
-      for (int i = 0; i < int(TextStyleType::TEXT_STYLES); ++i)
-            tb.textStyle->addItem(e->score()->textStyle(TextStyleType(i)).name());
+//      tb.textStyle->clear();
+//      for (int i = 0; i < int(TextStyleType::TEXT_STYLES); ++i)
+//            tb.textStyle->addItem(e->score()->textStyle(TextStyleType(i)).name());
 
       const TextStyle& ts = harmony->textStyle();
       ShowElementBase::setElement(e);
@@ -1439,6 +1447,7 @@ void HarmonyView::setElement(Element* e)
             hb.degreeTab->setItem(i, 1, new QTableWidgetItem(QVariant(d.value()).toString()));
             hb.degreeTab->setItem(i, 2, new QTableWidgetItem(QVariant(d.alter()).toString()));
             }
+#endif
       }
 
 void HarmonyView::on_leftParen_clicked(bool checked)
@@ -1552,7 +1561,7 @@ void BarLineView::setElement(Element* e)
       BarLine* barline = (BarLine*)e;
       ShowElementBase::setElement(e);
       bl.subType->setValue(int(barline->barLineType()));
-      bl.span->setValue(barline->span());
+      bl.span->setChecked(barline->spanStaff());
       bl.spanFrom->setValue(barline->spanFrom());
       bl.spanTo->setValue(barline->spanTo());
 //      bl.customSubtype->setChecked(barline->customSubtype());
@@ -1576,18 +1585,12 @@ DynamicView::DynamicView()
 
 void DynamicView::setElement(Element* e)
       {
-      Dynamic* dynamic = (Dynamic*)e;
+      Dynamic* dynamic = toDynamic(e);
 
-      tb.textStyle->clear();
-      for (int i = int(TextStyleType::DEFAULT); i < int(TextStyleType::TEXT_STYLES); ++i)
-            tb.textStyle->addItem(e->score()->textStyle(TextStyleType(i)).name());
-
-      const TextStyle& ts = dynamic->textStyle();
       tb.text->setPlainText(dynamic->xmlText());
-      tb.xoffset->setValue(ts.offset().x());
-      tb.yoffset->setValue(ts.offset().y());
-      tb.offsetType->setCurrentIndex(int(ts.offsetType()));
-//TODO      tb.textStyle->setCurrentIndex(dynamic->textStyleType());
+      tb.xoffset->setValue(dynamic->offset().x());
+      tb.yoffset->setValue(dynamic->offset().y());
+      tb.offsetType->setCurrentIndex(int(dynamic->offsetType()));
       tb.layoutToParentWidth->setChecked(dynamic->layoutToParentWidth());
 
       ShowElementBase::setElement(e);
@@ -1606,6 +1609,7 @@ TupletView::TupletView()
       tb.direction->addItem("Auto", 0);
       tb.direction->addItem("Up",   1);
       tb.direction->addItem("Down", 2);
+
 
       connect(tb.number, SIGNAL(clicked()), SLOT(numberClicked()));
       connect(tb.tuplet, SIGNAL(clicked()), SLOT(tupletClicked()));
@@ -1653,8 +1657,10 @@ void TupletView::setElement(Element* e)
       tb.ratioN->setValue(tuplet->ratio().denominator());
       tb.number->setEnabled(tuplet->number());
       tb.tuplet->setEnabled(tuplet->tuplet());
+      tb.duration->setText(tuplet->duration().print());
+
       tb.elements->clear();
-      foreach(DurationElement* e, tuplet->elements()) {
+      for (DurationElement* e : tuplet->elements()) {
             QTreeWidgetItem* item = new QTreeWidgetItem;
             item->setText(0, e->name());
             item->setText(1, QString("%1").arg(e->tick()));
@@ -1771,6 +1777,9 @@ void ShowElementBase::setElement(Element* e)
       eb.droptarget->setChecked(e->dropTarget());
       eb.generated->setChecked(e->generated());
       eb.visible->setChecked(e->visible());
+      eb.enabled->setChecked(e->enabled());
+      eb.header->setChecked(e->header());
+      eb.trailer->setChecked(e->trailer());
       eb.track->setValue(e->track());
       eb.z->setValue(e->z());
       eb.posx->setValue(e->ipos().x());
@@ -2314,6 +2323,55 @@ void OttavaView::setElement(Element* e)
       }
 
 //---------------------------------------------------------
+//   TieSegmentView
+//---------------------------------------------------------
+
+TieSegmentView::TieSegmentView()
+   : ShowElementBase()
+      {
+      ss.setupUi(addWidget());
+      connect(ss.slurTie, SIGNAL(clicked()), SLOT(slurTieClicked()));
+      }
+
+//---------------------------------------------------------
+//   stemClicked
+//---------------------------------------------------------
+
+void TieSegmentView::slurTieClicked()
+      {
+      emit elementChanged(toTieSegment(element())->slurTie());
+      }
+
+//---------------------------------------------------------
+//   TieSegmentView
+//---------------------------------------------------------
+
+void TieSegmentView::setElement(Element* e)
+      {
+      TieSegment* s = toTieSegment(e);
+      ShowElementBase::setElement(e);
+      ss.up1px->setValue(s->ups(Grip::START).p.x());
+      ss.up1py->setValue(s->ups(Grip::START).p.y());
+      ss.up1ox->setValue(s->ups(Grip::START).off.x());
+      ss.up1oy->setValue(s->ups(Grip::START).off.y());
+
+      ss.up2px->setValue(s->ups(Grip::BEZIER1).p.x());
+      ss.up2py->setValue(s->ups(Grip::BEZIER1).p.y());
+      ss.up2ox->setValue(s->ups(Grip::BEZIER1).off.x());
+      ss.up2oy->setValue(s->ups(Grip::BEZIER1).off.y());
+
+      ss.up3px->setValue(s->ups(Grip::BEZIER2).p.x());
+      ss.up3py->setValue(s->ups(Grip::BEZIER2).p.y());
+      ss.up3ox->setValue(s->ups(Grip::BEZIER2).off.x());
+      ss.up3oy->setValue(s->ups(Grip::BEZIER2).off.y());
+
+      ss.up4px->setValue(s->ups(Grip::END).p.x());
+      ss.up4py->setValue(s->ups(Grip::END).p.y());
+      ss.up4ox->setValue(s->ups(Grip::END).off.x());
+      ss.up4oy->setValue(s->ups(Grip::END).off.y());
+      }
+
+//---------------------------------------------------------
 //   SlurSegmentView
 //---------------------------------------------------------
 
@@ -2382,7 +2440,7 @@ void AccidentalView::setElement(Element* e)
       Accidental* s = static_cast<Accidental*>(e);
       ShowElementBase::setElement(e);
 
-      acc.hasBracket->setChecked(s->hasBracket());
+//TODO      acc.hasBracket->setChecked(s->hasBracket());
       acc.accAuto->setChecked(s->role() == AccidentalRole::AUTO);
       acc.accUser->setChecked(s->role() == AccidentalRole::USER);
       acc.small->setChecked(s->small());

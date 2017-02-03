@@ -46,7 +46,7 @@ class TestCopyPaste : public QObject, public MTest
       void copypaste04() { copypaste("04"); }       // start tie
       void copypaste05() { copypaste("05"); }       // end tie
       void copypaste06() { copypaste("06"); }       // tie
-      void copypaste07() { copypaste("07"); }       // start ottava
+//      void copypaste07() { copypaste("07"); }       // start ottava
       void copypaste08() { copypaste("08"); }       // end ottava
       void copypaste09() { copypaste("09"); }       // ottava
       void copypaste10() { copypaste("10"); }       // two slurs
@@ -62,6 +62,8 @@ class TestCopyPaste : public QObject, public MTest
       void copypaste19() { copypaste("19"); }       // chord symbols
       void copyPasteShortTremolo() { copypastevoice("21", 1); } // remove tremolo on shorten note #30411
       void copypaste22() { copypaste("22"); }       // cross-staff slur
+      void copypaste23() { copypaste("23"); }       // full measure tuplet 10/8
+      void copypaste24() { copypaste("24"); }       // more complex non reduced tuplet
 
       void copypastestaff50() { copypastestaff("50"); }       // staff & slurs
 
@@ -69,7 +71,6 @@ class TestCopyPaste : public QObject, public MTest
 
       void copyPasteTuplet01() { copypastetuplet("01"); }
       void copyPasteTuplet02() { copypastetuplet("02"); }
-
       };
 
 //---------------------------------------------------------
@@ -302,8 +303,7 @@ void TestCopyPaste::copyPaste2Voice5()
 
       //paste to quarter rest
       Element* dest = m1->first()->next(segTypeCR)->next(segTypeCR)->next(segTypeCR)->element(0);
-      QVERIFY(dest->type() == Element::Type::REST
-              && static_cast<ChordRest*>(dest)->durationType() == TDuration::DurationType::V_QUARTER);
+      QVERIFY(dest->isRest() && static_cast<ChordRest*>(dest)->durationType() == TDuration::DurationType::V_QUARTER);
       score->select(dest);
 
       score->startCmd();
@@ -382,7 +382,7 @@ void TestCopyPaste::copypaste2Voice6()
       //paste to 16th rest
       Element* dest = m1->first(segTypeCR)->next(segTypeCR)->next(segTypeCR)->next(segTypeCR)->next(segTypeCR)->element(0);
       qDebug() << int(dest->type());
-      QVERIFY(dest->type() == Element::Type::REST
+      QVERIFY(dest->isRest()
               && static_cast<ChordRest*>(dest)->durationType() == TDuration::DurationType::V_16TH);
       score->select(dest);
 

@@ -160,7 +160,7 @@ NewWizardPage1::NewWizardPage1(QWidget* parent)
    : QWizardPage(parent)
       {
       setTitle(tr("Create New Score"));
-      setSubTitle(tr("This wizard creates a new score"));
+      setSubTitle(tr("Enter score information:"));
       setAccessibleName(QWizardPage::title());
       setAccessibleDescription(QWizardPage::subTitle());
 
@@ -190,8 +190,7 @@ NewWizardPage2::NewWizardPage2(QWidget* parent)
       {
       setFinalPage(true);
       setTitle(tr("Create New Score"));
-      setSubTitle(tr("Define a set of instruments. Each instrument"
-                     " is represented by one or more staves"));
+      setSubTitle(tr("Choose instruments on the left to add to instrument list on the right:"));
       setAccessibleName(title());
       setAccessibleDescription(subTitle());
       w        = new InstrumentsWidget;
@@ -250,7 +249,7 @@ NewWizardPage3::NewWizardPage3(QWidget* parent)
       {
       setFinalPage(true);
       setTitle(tr("Create New Score"));
-      setSubTitle(tr("Create Time Signature"));
+      setSubTitle(tr("Choose time signature:"));
       setAccessibleName(title());
       setAccessibleDescription(subTitle());
 
@@ -269,7 +268,7 @@ NewWizardPage4::NewWizardPage4(QWidget* parent)
       {
       setFinalPage(true);
       setTitle(tr("Create New Score"));
-      setSubTitle(tr("Select Template File:"));
+      setSubTitle(tr("Choose template file:"));
       setAccessibleName(title());
       setAccessibleDescription(subTitle());
 
@@ -355,7 +354,7 @@ NewWizardPage5::NewWizardPage5(QWidget* parent)
       {
       setFinalPage(true);
       setTitle(tr("Create New Score"));
-      setSubTitle(tr("Select Key Signature and Tempo:"));
+      setSubTitle(tr("Choose key signature and tempo:"));
       setAccessibleName(title());
       setAccessibleDescription(subTitle());
 
@@ -415,11 +414,12 @@ KeySigEvent NewWizardPage5::keysig() const
 NewWizard::NewWizard(QWidget* parent)
    : QWizard(parent)
       {
+      setObjectName("NewWizard");
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
       setWizardStyle(QWizard::ClassicStyle);
       setPixmap(QWizard::LogoPixmap, QPixmap(":/data/mscore.png"));
       setPixmap(QWizard::WatermarkPixmap, QPixmap());
-      setWindowTitle(tr("MuseScore: Create New Score"));
+      setWindowTitle(tr("MuseScore: New Score Wizard"));
 
       setOption(QWizard::NoCancelButton, false);
       setOption(QWizard::CancelButtonOnLeft, true);
@@ -440,7 +440,8 @@ NewWizard::NewWizard(QWidget* parent)
       setPage(Page::Keysig,      p5);
       setPage(Page::Timesig,     p3);
 
-      resize(840, 560);
+
+      MuseScore::restoreGeometry(this);
       connect(this, SIGNAL(currentIdChanged(int)), SLOT(idChanged(int)));
       }
 
@@ -492,5 +493,16 @@ bool NewWizard::emptyScore() const
       bool val = fi.completeBaseName() == "00-Blank";
       return val;
       }
+
+//---------------------------------------------------------
+//   hideEvent
+//---------------------------------------------------------
+
+void NewWizard::hideEvent(QHideEvent* event)
+      {
+      MuseScore::saveGeometry(this);
+      QWidget::hideEvent(event);
+      }
+
 }
 

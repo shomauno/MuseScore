@@ -15,8 +15,6 @@
 
 #include "symbol.h"
 
-class QPainter;
-
 namespace Ms {
 
 class Chord;
@@ -53,7 +51,7 @@ class Tremolo : public Element {
       Tremolo(const Tremolo&);
       Tremolo &operator=(const Tremolo&) = delete;
       virtual Tremolo* clone() const     { return new Tremolo(*this); }
-      virtual Element::Type type() const { return Element::Type::TREMOLO; }
+      virtual ElementType type() const { return ElementType::TREMOLO; }
       virtual int subtype() const         { return (int) _tremoloType; }
       virtual QString subtypeName() const;
 
@@ -69,7 +67,7 @@ class Tremolo : public Element {
       virtual void draw(QPainter*) const;
       virtual void layout();
       void layout2();
-      virtual void write(Xml& xml) const;
+      virtual void write(XmlWriter& xml) const;
       virtual void read(XmlReader&);
 
       Chord* chord1() const { return _chord1; }

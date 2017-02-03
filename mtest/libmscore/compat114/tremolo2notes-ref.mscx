@@ -29,8 +29,6 @@
       <TextStyle>
         <halign>center</halign>
         <valign>baseline</valign>
-        <xoffset>0</xoffset>
-        <yoffset>8</yoffset>
         <offsetType>spatium</offsetType>
         <name>Dynamics</name>
         <family>FreeSerif</family>
@@ -98,12 +96,6 @@
     <metaTag name="translator"></metaTag>
     <metaTag name="workNumber"></metaTag>
     <metaTag name="workTitle"></metaTag>
-    <PageList>
-      <Page>
-        <System>
-          </System>
-        </Page>
-      </PageList>
     <Part>
       <Staff id="1">
         <StaffType group="pitched">
@@ -170,8 +162,6 @@
             </Note>
           </Chord>
         <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
           </BarLine>
         </Measure>
       <Measure number="2">
@@ -195,8 +185,6 @@
             </Note>
           </Chord>
         <BarLine>
-          <subtype>normal</subtype>
-          <span>1</span>
           </BarLine>
         </Measure>
       <Measure number="3">
@@ -220,8 +208,6 @@
             </Note>
           </Chord>
         <BarLine>
-          <subtype>end</subtype>
-          <span>1</span>
           </BarLine>
         </Measure>
       </Staff>

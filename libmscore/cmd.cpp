@@ -96,13 +96,11 @@ void CmdState::reset()
 
 void CmdState::setTick(int t)
       {
-      if (_updateMode == UpdateMode::LayoutAll)
-            return;
       if (_startTick == -1 || t < _startTick)
             _startTick = t;
       if (_endTick == -1 || t > _endTick)
             _endTick = t;
-      setUpdateMode(UpdateMode::LayoutRange);
+      setUpdateMode(UpdateMode::Layout);
       }
 
 //---------------------------------------------------------
@@ -162,11 +160,14 @@ void Score::undoRedo(bool undo)
 
 void Score::endCmd(bool rollback)
       {
+      qDebug("++++%p", this);
       if (!undoStack()->active()) {
             qDebug("Score::endCmd(): no cmd active");
             update();
             return;
             }
+      if (MScore::_error != MS_NO_ERROR)
+            rollback = true;
 
       if (rollback)
             undoStack()->current()->unwind();
@@ -193,40 +194,49 @@ void Score::endCmd(bool rollback)
 
 void Score::update()
       {
-      CmdState& cs = cmdState();
-      if (cs.layoutAll()) {
-            for (Score* s : scoreList())
-                  s->doLayout();
-            cs._setUpdateMode(UpdateMode::UpdateAll);
-            }
-      else if (cs.layoutRange()) {
-            for (Score* s : scoreList())
-                  s->doLayoutRange(cs.startTick(), cs.endTick());
-            cs._setUpdateMode(UpdateMode::UpdateAll);
-            }
-      if (cs.updateAll()) {
-            for (Score* s : scoreList()) {
-                  for (MuseScoreView* v : s->viewer)
-                        v->updateAll();
+      for (MasterScore* ms : *movements()) {
+            CmdState& cs = ms->cmdState();
+            if (cs.layoutRange()) {
+                  for (Score* s : ms->scoreList())
+                        s->doLayoutRange(cs.startTick(), cs.endTick());
+                  for (Score* s : scoreList()) {
+                        for (MuseScoreView* v : s->viewer)
+                              v->updateAll();
+                        }
+                  cs._setUpdateMode(UpdateMode::DoNothing);
+                  const InputState& is = inputState();
+                  if (is.noteEntryMode() && is.segment()) {
+                        setPlayPos(is.segment()->tick());
+                        }
+                  if (_playlistDirty) {
+                        emit playlistChanged();
+                        _playlistDirty = false;
+                        }
+                  break;
                   }
-            cs._setUpdateMode(UpdateMode::DoNothing);
-            }
-      else if (cs.updateRange()) {
-            // updateRange updates only current score
-            qreal d = spatium() * .5;
-            _updateState.refresh.adjust(-d, -d, 2 * d, 2 * d);
-            for (MuseScoreView* v : viewer)
-                  v->dataChanged(_updateState.refresh);
-            _updateState.refresh = QRectF();
-            }
-
-      const InputState& is = inputState();
-      if (is.noteEntryMode() && is.segment()) {
-            setPlayPos(is.segment()->tick());
-            }
-      if (_playlistDirty) {
-            emit playlistChanged();
-            _playlistDirty = false;
+            if (cs.updateAll()) {
+                  for (Score* s : scoreList()) {
+                        for (MuseScoreView* v : s->viewer)
+                              v->updateAll();
+                        }
+                  cs._setUpdateMode(UpdateMode::DoNothing);
+                  }
+            else if (cs.updateRange()) {
+                  // updateRange updates only current score
+                  qreal d = spatium() * .5;
+                  _updateState.refresh.adjust(-d, -d, 2 * d, 2 * d);
+                  for (MuseScoreView* v : viewer)
+                        v->dataChanged(_updateState.refresh);
+                  _updateState.refresh = QRectF();
+                  }
+            const InputState& is = inputState();
+            if (is.noteEntryMode() && is.segment()) {
+                  setPlayPos(is.segment()->tick());
+                  }
+            if (_playlistDirty) {
+                  emit playlistChanged();
+                  _playlistDirty = false;
+                  }
             }
       }
 
@@ -242,7 +252,7 @@ void Score::cmdAddSpanner(Spanner* spanner, const QPointF& pos)
       Segment* segment;
       MeasureBase* mb = pos2measure(pos, &staffIdx, 0, &segment, 0);
       // ignore if we do not have a measure
-      if (mb == 0 || mb->type() != Element::Type::MEASURE) {
+      if (mb == 0 || mb->type() != ElementType::MEASURE) {
             qDebug("cmdAddSpanner: cannot put object here");
             delete spanner;
             return;
@@ -295,32 +305,34 @@ void Score::cmdAddSpanner(Spanner* spanner, int staffIdx, Segment* startSegment,
       else
             tick2 = endSegment->tick();
       spanner->setTick2(tick2);
+#if 0 // TODO
       TextLine* tl = dynamic_cast<TextLine*>(spanner);
       if (tl) {
-            TextStyleType st;
+            StyledPropertyListIdx st;
             Text* t;
             // begin
             t = tl->beginTextElement();
             if (t) {
                   st = t->textStyleType();
-                  if (st >= TextStyleType::DEFAULT)
-                        t->textStyle().restyle(MScore::baseStyle()->textStyle(st), textStyle(st));
+                  if (st >= StyledPropertyListIdx::DEFAULT)
+                        t->textStyle().restyle(MScore::baseStyle().textStyle(st), textStyle(st));
                   }
             // continue
             t = tl->continueTextElement();
             if (t) {
                   st = t->textStyleType();
-                  if (st >= TextStyleType::DEFAULT)
-                        t->textStyle().restyle(MScore::baseStyle()->textStyle(st), textStyle(st));
+                  if (st >= StyledPropertyListIdx::DEFAULT)
+                        t->textStyle().restyle(MScore::baseStyle().textStyle(st), textStyle(st));
                   }
             // end
             t = tl->endTextElement();
             if (t) {
                   st = t->textStyleType();
-                  if (st >= TextStyleType::DEFAULT)
-                        t->textStyle().restyle(MScore::baseStyle()->textStyle(st), textStyle(st));
+                  if (st >= StyledPropertyListIdx::DEFAULT)
+                        t->textStyle().restyle(MScore::baseStyle().textStyle(st), textStyle(st));
                   }
             }
+#endif
       undoAddElement(spanner);
       }
 
@@ -499,7 +511,7 @@ void Score::setGraceNote(Chord* ch, int pitch, NoteType type, int len)
       chord->setDurationType(d);
       chord->setDuration(d.fraction());
       chord->setNoteType(type);
-      chord->setMag(ch->staff()->mag() * styleD(StyleIdx::graceNoteMag));
+      chord->setMag(ch->staff()->mag(chord->tick()) * styleD(StyleIdx::graceNoteMag));
 
       undoAddElement(chord);
       select(note, SelectType::SINGLE, 0);
@@ -552,8 +564,7 @@ void Score::createCRSequence(Fraction f, ChordRest* cr, int tick)
 //    return segment of last created note/rest
 //---------------------------------------------------------
 
-Segment* Score::setNoteRest(Segment* segment, int track, NoteVal nval, Fraction sd,
-   Direction stemDirection)
+Segment* Score::setNoteRest(Segment* segment, int track, NoteVal nval, Fraction sd, Direction stemDirection)
       {
       Q_ASSERT(segment->segmentType() == Segment::Type::ChordRest);
 
@@ -657,7 +668,7 @@ Segment* Score::setNoteRest(Segment* segment, int track, NoteVal nval, Fraction 
       if (tie)
             connectTies();
       if (nr) {
-            if (_is.slur() && nr->type() == Element::Type::NOTE) {
+            if (_is.slur() && nr->type() == ElementType::NOTE) {
                   //
                   // extend slur
                   //
@@ -809,7 +820,7 @@ Fraction Score::makeGap(Segment* segment, int track, const Fraction& _sd, Tuplet
                   int tick  = cr->tick() + f.ticks();
 
                   if ((tuplet == 0) && (((measure->tick() - tick) % dList[0].ticks()) == 0)) {
-                        foreach(TDuration d, dList) {
+                        for (TDuration d : dList) {
                               if (ltuplet) {
                                     // take care not to recreate tuplet we just deleted
                                     Rest* r = setRest(tick, track, d.fraction(), false, 0, false);
@@ -874,6 +885,8 @@ bool Score::makeGap1(int baseTick, int staffIdx, Fraction len, int voiceOffset[V
                   continue;
             int tick = baseTick + voiceOffset[track-strack];
             Measure* m   = tick2measure(tick);
+            if ((track % VOICES) && !m->hasVoices(staffIdx))
+                  continue;
             seg = m->undoGetSegment(Segment::Type::ChordRest, tick);
 
             Fraction newLen = len - Fraction::fromTicks(voiceOffset[track-strack]);
@@ -894,7 +907,8 @@ bool Score::makeGapVoice(Segment* seg, int track, Fraction len, int tick)
             Segment* seg1 = seg->prev(Segment::Type::ChordRest);
             for (;;) {
                   if (seg1 == 0) {
-                        qDebug("no segment before tick %d", tick);
+                        if (!(track % VOICES))
+                              qDebug("no segment before tick %d", tick);
                         // this happens only for voices other than voice 1
                         expandVoice(seg, track);
                         return makeGapVoice(seg,track,len,tick);
@@ -912,7 +926,7 @@ bool Score::makeGapVoice(Segment* seg, int track, Fraction len, int tick)
             if (n > 1) {
                   int crtick = cr1->tick() + cr1->actualTicks();
                   Measure* measure = tick2measure(crtick);
-                  if (cr1->type() == Element::Type::CHORD) {
+                  if (cr1->type() == ElementType::CHORD) {
                         // split Chord
                         Chord* c = toChord(cr1);
                         for (int i = 1; i < n; ++i) {
@@ -968,7 +982,7 @@ bool Score::makeGapVoice(Segment* seg, int track, Fraction len, int tick)
             Measure* m = cr->measure()->nextMeasure();
             if (m == 0) {
                   qDebug("EOS reached");
-                  insertMeasure(Element::Type::MEASURE, 0, false);
+                  insertMeasure(ElementType::MEASURE, 0, false);
                   m = cr->measure()->nextMeasure();
                   if (m == 0) {
                         qDebug("===EOS reached");
@@ -999,7 +1013,7 @@ QList<Fraction> Score::splitGapToMeasureBoundaries(ChordRest* cr, Fraction gap)
 
       Tuplet* tuplet = cr->tuplet();
       if (tuplet) {
-            if(tuplet->tuplet())
+            if (tuplet->tuplet())
                   return flist; // do no deal with nested tuplets
             Fraction rest = Fraction::fromTicks(tuplet->tick() + tuplet->duration().ticks() - cr->segment()->tick()) * tuplet->ratio();
             if (rest < gap)
@@ -1279,7 +1293,7 @@ void Score::upDown(bool up, UpDownMode mode)
             int string   = oNote->string();
             int fret     = oNote->fret();
 
-            switch (staff->staffType()->group()) {
+            switch (staff->staffType(oNote->chord()->tick())->group()) {
                   case StaffGroup::PERCUSSION:
                         {
                         const Drumset* ds = part->instrument()->drumset();
@@ -1296,7 +1310,7 @@ void Score::upDown(bool up, UpDownMode mode)
                         switch (mode) {
                               case UpDownMode::OCTAVE:          // move same note to next string, if possible
                                     {
-                                    StaffType* stt = staff->staffType();
+                                    StaffType* stt = staff->staffType(tick);
                                     string = stt->physStringToVisual(string);
                                     string += (up ? -1 : 1);
                                     if (string < 0 || string >= stringData->strings())
@@ -1411,7 +1425,7 @@ void Score::upDown(bool up, UpDownMode mode)
 
             // store fret change only if undoChangePitch has not been called,
             // as undoChangePitch() already manages fret changes, if necessary
-            else if (staff->staffType()->group() == StaffGroup::TAB) {
+            else if (staff->staffType(tick)->group() == StaffGroup::TAB) {
                   bool refret = false;
                   if (oNote->string() != string) {
                         undoChangeProperty(oNote, P_ID::STRING, string);
@@ -1489,7 +1503,7 @@ static void changeAccidental2(Note* n, int pitch, int tpc)
       int fret      = n->fret();
       int string    = n->string();
 
-      if (st->isTabStaff()) {
+      if (st->isTabStaff(chord->tick())) {
             if (pitch != n->pitch()) {
                   //
                   // as pitch has changed, calculate new
@@ -1509,7 +1523,7 @@ static void changeAccidental2(Note* n, int pitch, int tpc)
             tpc2 = tpc;
             }
 
-      if (!st->isTabStaff()) {
+      if (!st->isTabStaff(chord->tick())) {
             //
             // handle ties
             //
@@ -1677,8 +1691,8 @@ void Score::moveUp(ChordRest* cr)
 
       QList<Staff*>* staves = part->staves();
       // we know that staffMove+rstaff-1 index exists due to the previous condition.
-      if (staff->staffType()->group() != StaffGroup::STANDARD ||
-          staves->at(rstaff+staffMove-1)->staffType()->group() != StaffGroup::STANDARD) {
+      if (staff->staffType(cr->tick())->group() != StaffGroup::STANDARD ||
+          staves->at(rstaff+staffMove-1)->staffType(cr->tick())->group() != StaffGroup::STANDARD) {
             qDebug("User attempted to move a note from/to a staff which does not use standard notation - ignoring.");
             }
       else  {
@@ -1686,6 +1700,7 @@ void Score::moveUp(ChordRest* cr)
             undo(new ChangeChordStaffMove(cr, staffMove - 1));
             }
       }
+
 //---------------------------------------------------------
 //   moveDown
 //---------------------------------------------------------
@@ -1706,8 +1721,8 @@ void Score::moveDown(ChordRest* cr)
 
       QList<Staff*>* staves = part->staves();
       // we know that staffMove+rstaff+1 index exists due to the previous condition.
-      if (staff->staffType()->group() != StaffGroup::STANDARD ||
-          staves->at(staffMove+rstaff+1)->staffType()->group() != StaffGroup::STANDARD) {
+      if (staff->staffType(cr->tick())->group() != StaffGroup::STANDARD ||
+          staves->at(staffMove+rstaff+1)->staffType(cr->tick())->group() != StaffGroup::STANDARD) {
             qDebug("User attempted to move a note from/to a staff which does not use standard notation - ignoring.");
             }
       else  {
@@ -1760,11 +1775,11 @@ void Score::cmdResetBeamMode()
                   ChordRest* cr = toChordRest(seg->element(track));
                   if (cr == 0)
                         continue;
-                  if (cr->type() == Element::Type::CHORD) {
+                  if (cr->type() == ElementType::CHORD) {
                         if (cr->beamMode() != Beam::Mode::AUTO)
                               undoChangeProperty(cr, P_ID::BEAM_MODE, int(Beam::Mode::AUTO));
                         }
-                  else if (cr->type() == Element::Type::REST) {
+                  else if (cr->type() == ElementType::REST) {
                         if (cr->beamMode() != Beam::Mode::NONE)
                               undoChangeProperty(cr, P_ID::BEAM_MODE, int(Beam::Mode::NONE));
                         }
@@ -1936,19 +1951,19 @@ Element* Score::move(const QString& cmd)
             if (!el)
                   return 0;
             switch (el->type()) {
-                  case Element::Type::NOTE:           // a note is a valid target
+                  case ElementType::NOTE:           // a note is a valid target
                         trg = el;
                         cr  = toNote(el)->chord();
                         break;
-                  case Element::Type::CHORD:          // a chord or a rest are valid targets
-                  case Element::Type::REST:
+                  case ElementType::CHORD:          // a chord or a rest are valid targets
+                  case ElementType::REST:
                         trg = el;
                         cr  = toChordRest(trg);
                         break;
-                  case Element::Type::SEGMENT: {      // from segment go to top chordrest in segment
+                  case ElementType::SEGMENT: {      // from segment go to top chordrest in segment
                         Segment* seg  = toSegment(el);
                         // if segment is not chord/rest or grace, move to next chord/rest or grace segment
-                        if (!seg->isChordRest1()) {
+                        if (!seg->isChordRest()) {
                               seg = seg->next1(Segment::Type::ChordRest);
                               if (seg == 0)     // if none found, return failure
                                     return 0;
@@ -1977,7 +1992,7 @@ Element* Score::move(const QString& cmd)
             // if something found and command is forward, the element found is the destination
             if (trg && cmd == "next-chord") {
                   // if chord, go to topmost note
-                  if (trg->type() == Element::Type::CHORD)
+                  if (trg->type() == ElementType::CHORD)
                         trg = toChord(trg)->upNote();
                   setPlayNote(true);
                   select(trg, SelectType::SINGLE, 0);
@@ -2081,7 +2096,7 @@ Element* Score::move(const QString& cmd)
             }
 
       if (el) {
-            if (el->type() == Element::Type::CHORD)
+            if (el->type() == ElementType::CHORD)
                   el = toChord(el)->upNote();       // originally downNote
             setPlayNote(true);
             if (noteEntryMode()) {
@@ -2168,9 +2183,9 @@ void Score::cmdMirrorNoteHead()
       {
       const QList<Element*>& el = selection().elements();
       foreach(Element* e, el) {
-            if (e->type() == Element::Type::NOTE) {
+            if (e->type() == ElementType::NOTE) {
                   Note* note = toNote(e);
-                  if (note->staff() && note->staff()->isTabStaff())
+                  if (note->staff() && note->staff()->isTabStaff(note->chord()->tick()))
                         note->score()->undoChangeProperty(e, P_ID::GHOST, !note->ghost());
                   else {
                         MScore::DirectionH d = note->userMirror();
@@ -2193,7 +2208,7 @@ void Score::cmdHalfDuration()
       Element* el = selection().element();
       if (el == 0)
             return;
-      if (el->type() == Element::Type::NOTE)
+      if (el->type() == ElementType::NOTE)
             el = el->parent();
       if (!el->isChordRest())
             return;
@@ -2202,7 +2217,7 @@ void Score::cmdHalfDuration()
       TDuration d = _is.duration().shift(1);
       if (!d.isValid())
             return;
-      if (cr->type() == Element::Type::CHORD && (toChord(cr)->noteType() != NoteType::NORMAL)) {
+      if (cr->type() == ElementType::CHORD && (toChord(cr)->noteType() != NoteType::NORMAL)) {
             //
             // handle appoggiatura and acciaccatura
             //
@@ -2223,7 +2238,7 @@ void Score::cmdDoubleDuration()
       Element* el = selection().element();
       if (el == 0)
             return;
-      if (el->type() == Element::Type::NOTE)
+      if (el->type() == ElementType::NOTE)
             el = el->parent();
       if (!el->isChordRest())
             return;
@@ -2232,7 +2247,7 @@ void Score::cmdDoubleDuration()
       TDuration d = _is.duration().shift(-1);
       if (!d.isValid())
             return;
-      if (cr->type() == Element::Type::CHORD && (toChord(cr)->noteType() != NoteType::NORMAL)) {
+      if (cr->type() == ElementType::CHORD && (toChord(cr)->noteType() != NoteType::NORMAL)) {
             //
             // handle appoggiatura and acciaccatura
             //
@@ -2251,15 +2266,15 @@ void Score::cmdDoubleDuration()
 void Score::cmdAddBracket()
       {
       for(Element* el : selection().elements()) {
-            if (el->type() == Element::Type::NOTE) {
+            if (el->type() == ElementType::NOTE) {
                   Note* n = toNote(el);
-                  n->addBracket();
+                  n->addParentheses();
                   }
-            else if (el->type() == Element::Type::ACCIDENTAL) {
+            else if (el->type() == ElementType::ACCIDENTAL) {
                   Accidental* acc = toAccidental(el);
-                  acc->undoSetHasBracket(true);
+                  acc->undoChangeProperty(P_ID::ACCIDENTAL_BRACKET, int(AccidentalBracket::PARENTHESIS));
                   }
-            else if (el->type() == Element::Type::HARMONY) {
+            else if (el->type() == ElementType::HARMONY) {
                   Harmony* h = toHarmony(el);
                   h->setLeftParen(true);
                   h->setRightParen(true);
@@ -2312,309 +2327,6 @@ void Score::cmdMoveLyrics(Lyrics* lyrics, Direction dir)
       }
 
 //---------------------------------------------------------
-//   cmd
-//---------------------------------------------------------
-
-void Score::cmd(const QAction* a)
-      {
-      QString cmd(a ? a->data().toString() : "");
-      if (MScore::debugMode)
-            qDebug("Score::cmd <%s>", qPrintable(cmd));
-
-      //
-      // Hack for moving articulations while selected
-      //
-      Element* el = selection().element();
-      if (cmd == "pitch-up") {
-            if (el && el->isLyrics())
-                  cmdMoveLyrics(toLyrics(el), Direction::UP);
-            else if (el && (el->isArticulation() || el->isText()))
-                  el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, -MScore::nudgeStep * el->spatium()));
-            else if (el && el->isRest())
-                  cmdMoveRest(toRest(el), Direction::UP);
-            else
-                  upDown(true, UpDownMode::CHROMATIC);
-            }
-      else if (cmd == "pitch-down") {
-            if (el && el->isLyrics())
-                  cmdMoveLyrics(toLyrics(el), Direction::DOWN);
-            else if (el && (el->isArticulation() || el->isText()))
-                  el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, MScore::nudgeStep * el->spatium()));
-            else if (el && el->isRest())
-                  cmdMoveRest(toRest(el), Direction::DOWN);
-            else
-                  upDown(false, UpDownMode::CHROMATIC);
-            }
-      else if (cmd == "add-staccato")
-            addArticulation(SymId::articStaccatoAbove);
-      else if (cmd == "add-tenuto")
-            addArticulation(SymId::articTenutoAbove);
-      else if (cmd == "add-marcato")
-            addArticulation(SymId::articMarcatoAbove);
-      else if (cmd == "add-sforzato")
-            addArticulation(SymId::articAccentAbove);
-      else if (cmd == "add-trill")
-            addArticulation(SymId::ornamentTrill);
-      else if (cmd == "add-8va")
-            cmdAddOttava(Ottava::Type::OTTAVA_8VA);
-      else if (cmd == "add-8vb")
-            cmdAddOttava(Ottava::Type::OTTAVA_8VB);
-      else if (cmd == "time-delete") {
-            Element* e = selection().element();
-            if (e && e->isBarLine() && toBarLine(e)->segment()->isEndBarLineType()) {
-                  Measure* m = toBarLine(e)->segment()->measure();
-                  cmdJoinMeasure(m, m->nextMeasure());
-                  }
-            else
-                  cmdTimeDelete();
-            }
-      else if (cmd == "pitch-up-octave") {
-            if (el && (el->isArticulation() || el->isText()))
-                  el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, -MScore::nudgeStep10 * el->spatium()));
-            else
-                  upDown(true, UpDownMode::OCTAVE);
-            }
-      else if (cmd == "pitch-down-octave") {
-            if (el && (el->isArticulation() || el->isText()))
-                  el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, MScore::nudgeStep10 * el->spatium()));
-            else
-                  upDown(false, UpDownMode::OCTAVE);
-            }
-      else if (cmd == "note-longa"   || cmd == "note-longa-TAB")
-            padToggle(Pad::NOTE00);
-      else if (cmd == "note-breve"   || cmd == "note-breve-TAB")
-            padToggle(Pad::NOTE0);
-      else if (cmd == "pad-note-1"   || cmd == "pad-note-1-TAB")
-            padToggle(Pad::NOTE1);
-      else if (cmd == "pad-note-2"   || cmd == "pad-note-2-TAB")
-            padToggle(Pad::NOTE2);
-      else if (cmd == "pad-note-4"   || cmd == "pad-note-4-TAB")
-            padToggle(Pad::NOTE4);
-      else if (cmd == "pad-note-8"   || cmd == "pad-note-8-TAB")
-            padToggle(Pad::NOTE8);
-      else if (cmd == "pad-note-16"  || cmd == "pad-note-16-TAB")
-            padToggle(Pad::NOTE16);
-      else if (cmd == "pad-note-32"  || cmd == "pad-note-32-TAB")
-            padToggle(Pad::NOTE32);
-      else if (cmd == "pad-note-64"  || cmd == "pad-note-64-TAB")
-            padToggle(Pad::NOTE64);
-      else if (cmd == "pad-note-128" || cmd == "pad-note-128-TAB")
-            padToggle(Pad::NOTE128);
-      else if (cmd == "pad-note-increase-TAB") {
-            switch (_is.duration().type() ) {
-// cycle back from longest to shortest?
-//                  case TDuration::V_LONG:
-//                        padToggle(Pad::NOTE128);
-//                        break;
-                  case TDuration::DurationType::V_BREVE:
-                        padToggle(Pad::NOTE00);
-                        break;
-                  case TDuration::DurationType::V_WHOLE:
-                        padToggle(Pad::NOTE0);
-                        break;
-                  case TDuration::DurationType::V_HALF:
-                        padToggle(Pad::NOTE1);
-                        break;
-                  case TDuration::DurationType::V_QUARTER:
-                        padToggle(Pad::NOTE2);
-                        break;
-                  case TDuration::DurationType::V_EIGHTH:
-                        padToggle(Pad::NOTE4);
-                        break;
-                  case TDuration::DurationType::V_16TH:
-                        padToggle(Pad::NOTE8);
-                        break;
-                  case TDuration::DurationType::V_32ND:
-                        padToggle(Pad::NOTE16);
-                        break;
-                  case TDuration::DurationType::V_64TH:
-                        padToggle(Pad::NOTE32);
-                        break;
-                  case TDuration::DurationType::V_128TH:
-                        padToggle(Pad::NOTE64);
-                        break;
-                  default:
-                        break;
-                  }
-            }
-      else if (cmd == "pad-note-decrease-TAB") {
-            switch (_is.duration().type() ) {
-                  case TDuration::DurationType::V_LONG:
-                        padToggle(Pad::NOTE0);
-                        break;
-                  case TDuration::DurationType::V_BREVE:
-                        padToggle(Pad::NOTE1);
-                        break;
-                  case TDuration::DurationType::V_WHOLE:
-                        padToggle(Pad::NOTE2);
-                        break;
-                  case TDuration::DurationType::V_HALF:
-                        padToggle(Pad::NOTE4);
-                        break;
-                  case TDuration::DurationType::V_QUARTER:
-                        padToggle(Pad::NOTE8);
-                        break;
-                  case TDuration::DurationType::V_EIGHTH:
-                        padToggle(Pad::NOTE16);
-                        break;
-                  case TDuration::DurationType::V_16TH:
-                        padToggle(Pad::NOTE32);
-                        break;
-                  case TDuration::DurationType::V_32ND:
-                        padToggle(Pad::NOTE64);
-                        break;
-                  case TDuration::DurationType::V_64TH:
-                        padToggle(Pad::NOTE128);
-                        break;
-// cycle back from shortest to longest?
-//                  case TDuration::DurationType::V_128TH:
-//                        padToggle(Pad::NOTE00);
-//                        break;
-                  default:
-                        break;
-                  }
-            }
-      else if (cmd == "pad-rest")
-            padToggle(Pad::REST);
-      else if (cmd == "pad-dot")
-            padToggle(Pad::DOT);
-      else if (cmd == "pad-dotdot")
-            padToggle(Pad::DOTDOT);
-      else if (cmd == "pad-dot3")
-            padToggle(Pad::DOT3);
-      else if (cmd == "pad-dot4")
-            padToggle(Pad::DOT4);
-      else if (cmd == "beam-start")
-            cmdSetBeamMode(Beam::Mode::BEGIN);
-      else if (cmd == "beam-mid")
-            cmdSetBeamMode(Beam::Mode::MID);
-      else if (cmd == "no-beam")
-            cmdSetBeamMode(Beam::Mode::NONE);
-      else if (cmd == "beam-32")
-            cmdSetBeamMode(Beam::Mode::BEGIN32);
-      else if (cmd == "sharp2")
-            changeAccidental(AccidentalType::SHARP2);
-      else if (cmd == "sharp")
-            changeAccidental(AccidentalType::SHARP);
-      else if (cmd == "nat")
-            changeAccidental(AccidentalType::NATURAL);
-      else if (cmd == "flat")
-            changeAccidental(AccidentalType::FLAT);
-      else if (cmd == "flat2")
-            changeAccidental(AccidentalType::FLAT2);
-      else if (cmd == "flip")
-            cmdFlip();
-      else if (cmd == "stretch+")
-            cmdAddStretch(0.1);
-      else if (cmd == "stretch-")
-            cmdAddStretch(-0.1);
-      else if (cmd == "pitch-spell")
-            spell();
-      else if (cmd == "select-all")
-            cmdSelectAll();
-      else if (cmd == "select-section")
-            cmdSelectSection();
-      else if (cmd == "concert-pitch") {
-            if (styleB(StyleIdx::concertPitch) != a->isChecked())
-                  cmdConcertPitchChanged(a->isChecked(), true);
-            }
-      else if (cmd == "reset-beammode")
-            cmdResetBeamMode();
-      else if (cmd == "reset-groupings")
-            cmdResetNoteAndRestGroupings();
-      else if (cmd == "clef-violin")
-            cmdInsertClef(ClefType::G);
-      else if (cmd == "clef-bass")
-            cmdInsertClef(ClefType::F);
-      else if (cmd == "voice-x12")
-            cmdExchangeVoice(0, 1);
-      else if (cmd == "voice-x13")
-            cmdExchangeVoice(0, 2);
-      else if (cmd == "voice-x14")
-            cmdExchangeVoice(0, 3);
-      else if (cmd == "voice-x23")
-            cmdExchangeVoice(1, 2);
-      else if (cmd == "voice-x24")
-            cmdExchangeVoice(1, 3);
-      else if (cmd == "voice-x34")
-            cmdExchangeVoice(2, 3);
-      else if (cmd == "system-break" || cmd == "page-break" || cmd == "section-break") {
-            LayoutBreak::Type type;
-            if (cmd == "system-break")
-                  type = LayoutBreak::Type::LINE;
-            else if (cmd == "page-break")
-                  type = LayoutBreak::Type::PAGE;
-            else
-                  type = LayoutBreak::Type::SECTION;
-
-            if (el && el->type() == Element::Type::BAR_LINE && el->parent()->type() == Element::Type::SEGMENT) {
-                  Measure* measure = toMeasure(el->parent()->parent());
-                  if (measure->isMMRest()) {
-                        // if measure is mm rest, then propagate to last original measure
-                        measure = measure->nextMeasure();
-                        if (measure)
-                              measure = measure->prevMeasure();
-                        }
-                  if (measure)
-                        measure->undoSetBreak(!measure->lineBreak(), type);
-                  }
-            }
-      else if (cmd == "reset-stretch")
-            resetUserStretch();
-      else if (cmd == "mirror-note")
-            cmdMirrorNoteHead();
-      else if (cmd == "double-duration")
-            cmdDoubleDuration();
-      else if (cmd == "half-duration")
-            cmdHalfDuration();
-      else if (cmd == "")               //Midi note received only?
-                  ;
-      else if (cmd == "add-audio")
-            addAudioTrack();
-      else if (cmd == "transpose-up")
-            transposeSemitone(1);
-      else if (cmd == "transpose-down")
-            transposeSemitone(-1);
-      else if (cmd == "toggle-mmrest") {
-            bool val = !styleB(StyleIdx::createMultiMeasureRests);
-            deselectAll();
-            undo(new ChangeStyleVal(this, StyleIdx::createMultiMeasureRests, val));
-            }
-      else if (cmd == "add-brackets")
-            cmdAddBracket();
-      else if (cmd == "acciaccatura")
-            cmdAddGrace(NoteType::ACCIACCATURA, MScore::division / 2);
-      else if (cmd == "appoggiatura")
-            cmdAddGrace(NoteType::APPOGGIATURA, MScore::division / 2);
-      else if (cmd == "grace4")
-            cmdAddGrace(NoteType::GRACE4, MScore::division);
-      else if (cmd == "grace16")
-            cmdAddGrace(NoteType::GRACE16, MScore::division / 4);
-      else if (cmd == "grace32")
-            cmdAddGrace(NoteType::GRACE32, MScore::division / 8);
-      else if (cmd == "grace8after")
-            cmdAddGrace(NoteType::GRACE8_AFTER, MScore::division / 2);
-      else if (cmd == "grace16after")
-            cmdAddGrace(NoteType::GRACE16_AFTER, MScore::division / 4);
-      else if (cmd == "grace32after")
-            cmdAddGrace(NoteType::GRACE32_AFTER, MScore::division / 8);
-      else if (cmd == "explode")
-            cmdExplode();
-      else if (cmd == "implode")
-            cmdImplode();
-      else if (cmd == "slash-fill")
-            cmdSlashFill();
-      else if (cmd == "slash-rhythm")
-            cmdSlashRhythm();
-      else if (cmd == "resequence-rehearsal-marks")
-            cmdResequenceRehearsalMarks();
-      else if (cmd == "del-empty-measures")
-            cmdRemoveEmptyTrailingMeasures();
-      else
-            qDebug("unknown cmd <%s>", qPrintable(cmd));
-      }
-
-//---------------------------------------------------------
 //   cmdInsertClef
 //---------------------------------------------------------
 
@@ -2632,53 +2344,7 @@ void Score::cmdInsertClef(ClefType type)
 
 void Score::cmdInsertClef(Clef* clef, ChordRest* cr)
       {
-      Clef* gclef = 0;
-      for (ScoreElement* e : cr->linkList()) {
-            ChordRest* cr = static_cast<ChordRest*>(e);
-            Score* score  = cr->score();
-
-            //
-            // create a clef segment before cr if needed
-            //
-            Segment* s  = cr->segment();
-            Segment* cs = s->prev();
-            int tick    = s->tick();
-            bool createSegment = true;
-#if 1
-            // re-use a preceding clef segment containing no clef or a non-generated one,
-            // but still allow addition of a "mid-measure" change even at the start of a measure/system
-            // this is useful for cues, for example
-            if (cs && cs->segmentType() == Segment::Type::Clef) {
-                  Element* e = cs->element(cr->staffIdx() * VOICES);
-                  if (!e || !e->generated())
-                        createSegment = false;
-                  }
-#else
-            // automatically convert a clef added on first chordrest of measure
-            // into a "regular" clef change at end of previous bar
-            // this defeats the ability to have a "mid-measure" clef change at the start of a bar for cues
-            Measure* m = s->measure();
-            if (s == m->first(Segment::Type::ChordRest)) {
-                  if (m->prevMeasure())
-                        m = m->prevMeasure();
-                  cs = m->undoGetSegment(Segment::Type::Clef, tick);
-                  createSegment = false;
-                  }
-#endif
-            if (createSegment) {
-                  cs = new Segment(cr->measure(), Segment::Type::Clef, tick);
-                  cs->setNext(s);
-                  score->undo(new AddElement(cs));
-                  }
-            Clef* c = toClef(gclef ? gclef->linkedClone() : clef->clone());
-            gclef = c;
-            c->setParent(cs);
-            c->setScore(score);
-            c->setTrack(cr->staffIdx() * VOICES);
-            if (cs->element(c->track()))
-                  score->undo(new RemoveElement(cs->element(c->track())));
-            score->undo(new AddElement(c));
-            }
+      undoChangeClef(cr->staff(), cr->segment(), clef->clefType());
       delete clef;
       }
 
@@ -2687,15 +2353,14 @@ void Score::cmdInsertClef(Clef* clef, ChordRest* cr)
 ///   adds grace note of specified type to selected notes
 //---------------------------------------------------------
 
-void Score::cmdAddGrace (NoteType graceType, int duration) {
-      startCmd();
+void Score::cmdAddGrace (NoteType graceType, int duration)
+      {
       for (Element* e : selection().elements()) {
-            if (e->type() == Element::Type::NOTE) {
+            if (e->type() == ElementType::NOTE) {
                   Note* n = toNote(e);
                   setGraceNote(n->chord(), n->pitch(), graceType, duration);
                   }
             }
-      endCmd();
       }
 
 //---------------------------------------------------------
@@ -2741,7 +2406,7 @@ void Score::cmdExplode()
                   int n = 0;
                   for (Segment* s = startSegment; s && s != endSegment; s = s->next1()) {
                         Element* e = s->element(srcTrack);
-                        if (e && e->type() == Element::Type::CHORD) {
+                        if (e && e->type() == ElementType::CHORD) {
                               Chord* c = toChord(e);
                               n = qMax(n, int(c->notes().size()));
                               }
@@ -2758,10 +2423,9 @@ void Score::cmdExplode()
                   int track = (srcStaff + i) * VOICES;
                   ChordRest* cr = toChordRest(firstCRSegment->element(track));
                   if (cr) {
-                        XmlReader e(srcSelection.mimeData());
+                        XmlReader e(this, srcSelection.mimeData());
                         e.setPasteMode(true);
-                        if (pasteStaff(e, cr->segment(), cr->staffIdx()) != PasteState::PS_NO_ERROR)
-                              qDebug("explode: paste failed");
+                        pasteStaff(e, cr->segment(), cr->staffIdx());
                         }
                   }
 
@@ -2770,7 +2434,7 @@ void Score::cmdExplode()
                   int track = (srcStaff + i) * VOICES;
                   for (Segment* s = startSegment; s && s != endSegment; s = s->next1()) {
                         Element* e = s->element(track);
-                        if (e && e->type() == Element::Type::CHORD) {
+                        if (e && e->type() == ElementType::CHORD) {
                               Chord* c = toChord(e);
                               std::vector<Note*> notes = c->notes();
                               int nnotes = notes.size();
@@ -3021,7 +2685,7 @@ void Score::cmdSlashFill()
                               if (!cr)
                                     needGap[voice] = true;
                               // chord == keep looking for an available voice
-                              else if (cr->type() == Element::Type::CHORD)
+                              else if (cr->type() == ElementType::CHORD)
                                     continue;
                               // full measure rest == OK to use voice
                               else if (cr->durationType() == TDuration::DurationType::V_MEASURE)
@@ -3031,7 +2695,7 @@ void Score::cmdSlashFill()
                               bool ok = true;
                               for (Segment* ns = s->next(Segment::Type::ChordRest); ns && ns != endSegment; ns = ns->next(Segment::Type::ChordRest)) {
                                     ChordRest* ncr = toChordRest(ns->element(track + voice));
-                                    if (ncr && ncr->type() == Element::Type::CHORD) {
+                                    if (ncr && ncr->type() == ElementType::CHORD) {
                                           ok = false;
                                           break;
                                           }
@@ -3050,11 +2714,11 @@ void Score::cmdSlashFill()
                   int line = 0;
                   bool error = false;
                   NoteVal nv;
-                  if (staff(staffIdx)->staffType()->group() == StaffGroup::TAB)
-                        line = staff(staffIdx)->lines() / 2;
+                  if (staff(staffIdx)->staffType(s->tick())->group() == StaffGroup::TAB)
+                        line = staff(staffIdx)->lines(s->tick()) / 2;
                   else
-                        line = staff(staffIdx)->middleLine();     // staff(staffIdx)->lines() - 1;
-                  if (staff(staffIdx)->staffType()->group() == StaffGroup::PERCUSSION) {
+                        line = staff(staffIdx)->middleLine(s->tick());     // staff(staffIdx)->lines() - 1;
+                  if (staff(staffIdx)->staffType(s->tick())->group() == StaffGroup::PERCUSSION) {
                         nv.pitch = 0;
                         nv.headGroup = NoteHead::Group::HEAD_SLASH;
                         }
@@ -3104,7 +2768,7 @@ void Score::cmdSlashRhythm()
       QList<Chord*> chords;
       // loop through all notes in selection
       foreach (Element* e, selection().elements()) {
-            if (e->voice() >= 2 && e->type() == Element::Type::REST) {
+            if (e->voice() >= 2 && e->type() == ElementType::REST) {
                   Rest* r = toRest(e);
                   if (r->links()) {
                         for (ScoreElement* e : *r->links()) {
@@ -3116,7 +2780,7 @@ void Score::cmdSlashRhythm()
                         r->setAccent(!r->accent());
                   continue;
                   }
-            else if (e->type() == Element::Type::NOTE) {
+            else if (e->type() == ElementType::NOTE) {
                   Note* n = toNote(e);
                   if (n->noteType() != NoteType::NORMAL)
                         continue;
@@ -3156,7 +2820,7 @@ void Score::cmdResequenceRehearsalMarks()
       RehearsalMark* last = 0;
       for (Segment* s = selection().startSegment(); s && s != selection().endSegment(); s = s->next1()) {
             for (Element* e : s->annotations()) {
-                  if (e->type() == Element::Type::REHEARSAL_MARK) {
+                  if (e->type() == ElementType::REHEARSAL_MARK) {
                         RehearsalMark* rm = toRehearsalMark(e);
                         if (last) {
                               QString rmText = nextRehearsalMarkText(last, rm);
@@ -3258,9 +2922,356 @@ void Score::cmdRemoveEmptyTrailingMeasures()
                   break;
             firstMeasure = m;
             }
-      startCmd();
       deleteMeasures(firstMeasure, lastMeasure);
-      endCmd();
       }
+
+//---------------------------------------------------------
+//   cmdPitchUp
+//---------------------------------------------------------
+
+void Score::cmdPitchUp()
+      {
+      Element* el = selection().element();
+      if (el && el->isLyrics())
+            cmdMoveLyrics(toLyrics(el), Direction::UP);
+      else if (el && (el->isArticulation() || el->isText()))
+            el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, -MScore::nudgeStep * el->spatium()));
+      else if (el && el->isRest())
+            cmdMoveRest(toRest(el), Direction::UP);
+      else
+            upDown(true, UpDownMode::CHROMATIC);
+      }
+
+//---------------------------------------------------------
+//   cmdPitchDown
+//---------------------------------------------------------
+
+void Score::cmdPitchDown()
+      {
+      Element* el = selection().element();
+      if (el && el->isLyrics())
+            cmdMoveLyrics(toLyrics(el), Direction::DOWN);
+      else if (el && (el->isArticulation() || el->isText()))
+            el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, MScore::nudgeStep * el->spatium()));
+      else if (el && el->isRest())
+            cmdMoveRest(toRest(el), Direction::DOWN);
+      else
+            upDown(false, UpDownMode::CHROMATIC);
+      }
+
+//---------------------------------------------------------
+//   cmdTimeDelete
+//---------------------------------------------------------
+
+void Score::cmdTimeDelete()
+      {
+      Element* e = selection().element();
+      if (e && e->isBarLine() && toBarLine(e)->segment()->isEndBarLineType()) {
+            Measure* m = toBarLine(e)->segment()->measure();
+            cmdJoinMeasure(m, m->nextMeasure());
+            }
+      else {
+            if (_is.insertMode())
+                  globalTimeDelete();
+            else
+                  localTimeDelete();
+            }
+      }
+
+//---------------------------------------------------------
+//   cmdPitchUpOctave
+//---------------------------------------------------------
+
+void Score::cmdPitchUpOctave()
+      {
+      Element* el = selection().element();
+      if (el && (el->isArticulation() || el->isText()))
+            el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, -MScore::nudgeStep10 * el->spatium()));
+      else
+            upDown(true, UpDownMode::OCTAVE);
+      }
+
+//---------------------------------------------------------
+//   cmdPitchDownOctave
+//---------------------------------------------------------
+
+void Score::cmdPitchDownOctave()
+      {
+      Element* el = selection().element();
+      if (el && (el->isArticulation() || el->isText()))
+            el->undoChangeProperty(P_ID::USER_OFF, el->userOff() + QPointF(0.0, MScore::nudgeStep10 * el->spatium()));
+      else
+            upDown(false, UpDownMode::OCTAVE);
+      }
+
+//---------------------------------------------------------
+//   cmdPadNoteInclreaseTAB
+//---------------------------------------------------------
+
+void Score::cmdPadNoteIncreaseTAB()
+      {
+      switch (_is.duration().type() ) {
+// cycle back from longest to shortest?
+//          case TDuration::V_LONG:
+//                padToggle(Pad::NOTE128);
+//                break;
+            case TDuration::DurationType::V_BREVE:
+                  padToggle(Pad::NOTE00);
+                  break;
+            case TDuration::DurationType::V_WHOLE:
+                  padToggle(Pad::NOTE0);
+                  break;
+            case TDuration::DurationType::V_HALF:
+                  padToggle(Pad::NOTE1);
+                  break;
+            case TDuration::DurationType::V_QUARTER:
+                  padToggle(Pad::NOTE2);
+                  break;
+            case TDuration::DurationType::V_EIGHTH:
+                  padToggle(Pad::NOTE4);
+                  break;
+            case TDuration::DurationType::V_16TH:
+                  padToggle(Pad::NOTE8);
+                  break;
+            case TDuration::DurationType::V_32ND:
+                  padToggle(Pad::NOTE16);
+                  break;
+            case TDuration::DurationType::V_64TH:
+                  padToggle(Pad::NOTE32);
+                  break;
+            case TDuration::DurationType::V_128TH:
+                  padToggle(Pad::NOTE64);
+                  break;
+            default:
+                  break;
+            }
+      }
+
+//---------------------------------------------------------
+//   cmdPadNoteDecreaseTAB
+//---------------------------------------------------------
+
+void Score::cmdPadNoteDecreaseTAB()
+      {
+      switch (_is.duration().type() ) {
+            case TDuration::DurationType::V_LONG:
+                  padToggle(Pad::NOTE0);
+                  break;
+            case TDuration::DurationType::V_BREVE:
+                  padToggle(Pad::NOTE1);
+                  break;
+            case TDuration::DurationType::V_WHOLE:
+                  padToggle(Pad::NOTE2);
+                  break;
+            case TDuration::DurationType::V_HALF:
+                  padToggle(Pad::NOTE4);
+                  break;
+            case TDuration::DurationType::V_QUARTER:
+                  padToggle(Pad::NOTE8);
+                  break;
+            case TDuration::DurationType::V_EIGHTH:
+                  padToggle(Pad::NOTE16);
+                  break;
+            case TDuration::DurationType::V_16TH:
+                  padToggle(Pad::NOTE32);
+                  break;
+            case TDuration::DurationType::V_32ND:
+                  padToggle(Pad::NOTE64);
+                  break;
+            case TDuration::DurationType::V_64TH:
+                  padToggle(Pad::NOTE128);
+                  break;
+// cycle back from shortest to longest?
+//          case TDuration::DurationType::V_128TH:
+//                padToggle(Pad::NOTE00);
+//                break;
+            default:
+                  break;
+            }
+      }
+
+//---------------------------------------------------------
+//   cmdToggleLayoutBreak
+//---------------------------------------------------------
+
+void Score::cmdToggleLayoutBreak(LayoutBreak::Type type)
+      {
+      Element* el = selection().element();
+      if (el && el->isBarLine() && el->parent()->isSegment()) {
+            Measure* measure = toMeasure(el->parent()->parent());
+            // if measure is mm rest, then propagate to last original measure
+            measure = measure->isMMRest() ? measure->mmRestLast() : measure;
+            if (measure)
+                  measure->undoSetBreak(!measure->lineBreak(), type);
+            }
+      }
+
+//---------------------------------------------------------
+//   cmdToggleMmrest
+//---------------------------------------------------------
+
+void Score::cmdToggleMmrest()
+      {
+      bool val = !styleB(StyleIdx::createMultiMeasureRests);
+      deselectAll();
+      undo(new ChangeStyleVal(this, StyleIdx::createMultiMeasureRests, val));
+      }
+
+//---------------------------------------------------------
+//   cmdToggleHideEmpty
+//---------------------------------------------------------
+
+void Score::cmdToggleHideEmpty()
+      {
+      bool val = !styleB(StyleIdx::hideEmptyStaves);
+      deselectAll();
+      undo(new ChangeStyleVal(this, StyleIdx::hideEmptyStaves, val));
+      }
+
+//---------------------------------------------------------
+//   cmdSetVisible
+//---------------------------------------------------------
+
+void Score::cmdSetVisible()
+      {
+      for (Element* e : selection().elements())
+            undo(new ChangeProperty(e, P_ID::VISIBLE, true));
+      }
+
+//---------------------------------------------------------
+//   cmdUnsetVisible
+//---------------------------------------------------------
+
+void Score::cmdUnsetVisible()
+      {
+      for (Element* e : selection().elements())
+            undo(new ChangeProperty(e, P_ID::VISIBLE, false));
+      }
+
+//---------------------------------------------------------
+//   cmd
+//---------------------------------------------------------
+
+void Score::cmd(const QAction* a)
+      {
+      QString cmd(a ? a->data().toString() : "");
+      if (MScore::debugMode)
+            qDebug("<%s>", qPrintable(cmd));
+
+      struct ScoreCmd {
+            const char* name;
+            std::function<void()> cmd;
+            };
+      static const std::vector<ScoreCmd> cmdList {
+            { "reset-stretch",              [this]{ resetUserStretch();                                         }},
+            { "mirror-note",                [this]{ cmdMirrorNoteHead();                                        }},
+            { "double-duration",            [this]{ cmdDoubleDuration();                                        }},
+            { "half-duration",              [this]{ cmdHalfDuration ();                                         }},
+            { "add-staccato",               [this]{ addArticulation(SymId::articStaccatoAbove);                 }},
+            { "add-tenuto",                 [this]{ addArticulation(SymId::articTenutoAbove);                   }},
+            { "add-marcato",                [this]{ addArticulation(SymId::articMarcatoAbove);                  }},
+            { "add-sforzato",               [this]{ addArticulation(SymId::articAccentAbove);                   }},
+            { "add-trill",                  [this]{ addArticulation(SymId::ornamentTrill);                      }},
+            { "add-8va",                    [this]{ cmdAddOttava(Ottava::Type::OTTAVA_8VA);                     }},
+            { "add-8vb",                    [this]{ cmdAddOttava(Ottava::Type::OTTAVA_8VB);                     }},
+            { "note-longa",                 [this]{ padToggle(Pad::NOTE00);                                     }},
+            { "note-longa-TAB",             [this]{ padToggle(Pad::NOTE00);                                     }},
+            { "note-breve",                 [this]{ padToggle(Pad::NOTE0);                                      }},
+            { "note-breve-TAB",             [this]{ padToggle(Pad::NOTE0);                                      }},
+            { "pad-note-1",                 [this]{ padToggle(Pad::NOTE1);                                      }},
+            { "pad-note-1-TAB",             [this]{ padToggle(Pad::NOTE1);                                      }},
+            { "pad-note-2",                 [this]{ padToggle(Pad::NOTE2);                                      }},
+            { "pad-note-2-TAB",             [this]{ padToggle(Pad::NOTE2);                                      }},
+            { "pad-note-4",                 [this]{ padToggle(Pad::NOTE4);                                      }},
+            { "pad-note-4-TAB",             [this]{ padToggle(Pad::NOTE4);                                      }},
+            { "pad-note-8",                 [this]{ padToggle(Pad::NOTE8);                                      }},
+            { "pad-note-8-TAB",             [this]{ padToggle(Pad::NOTE8);                                      }},
+            { "pad-note-16",                [this]{ padToggle(Pad::NOTE16);                                     }},
+            { "pad-note-16-TAB",            [this]{ padToggle(Pad::NOTE16);                                     }},
+            { "pad-note-32",                [this]{ padToggle(Pad::NOTE32);                                     }},
+            { "pad-note-32-TAB",            [this]{ padToggle(Pad::NOTE32);                                     }},
+            { "pad-note-64",                [this]{ padToggle(Pad::NOTE64);                                     }},
+            { "pad-note-64-TAB",            [this]{ padToggle(Pad::NOTE64);                                     }},
+            { "pad-note-128",               [this]{ padToggle(Pad::NOTE128);                                    }},
+            { "pad-note-128-TAB",           [this]{ padToggle(Pad::NOTE128);                                    }},
+            { "reset-beammode",             [this]{ cmdResetBeamMode();                                         }},
+            { "reset-groupings",            [this]{ cmdResetNoteAndRestGroupings();                             }},
+            { "clef-violin",                [this]{ cmdInsertClef(ClefType::G);                                 }},
+            { "clef-bass",                  [this]{ cmdInsertClef(ClefType::F);                                 }},
+            { "voice-x12",                  [this]{ cmdExchangeVoice(0, 1);                                     }},
+            { "voice-x13",                  [this]{ cmdExchangeVoice(0, 2);                                     }},
+            { "voice-x14",                  [this]{ cmdExchangeVoice(0, 3);                                     }},
+            { "voice-x23",                  [this]{ cmdExchangeVoice(1, 2);                                     }},
+            { "voice-x24",                  [this]{ cmdExchangeVoice(1, 3);                                     }},
+            { "voice-x34",                  [this]{ cmdExchangeVoice(2, 3);                                     }},
+            { "pad-rest",                   [this]{ padToggle(Pad::REST);                                       }},
+            { "pad-dot",                    [this]{ padToggle(Pad::DOT);                                        }},
+            { "pad-dotdot",                 [this]{ padToggle(Pad::DOTDOT);                                     }},
+            { "pad-dot3",                   [this]{ padToggle(Pad::DOT3);                                       }},
+            { "pad-dot4",                   [this]{ padToggle(Pad::DOT4);                                       }},
+            { "beam-start",                 [this]{ cmdSetBeamMode(Beam::Mode::BEGIN);                          }},
+            { "beam-mid",                   [this]{ cmdSetBeamMode(Beam::Mode::MID);                            }},
+            { "no-beam",                    [this]{ cmdSetBeamMode(Beam::Mode::NONE);                           }},
+            { "beam-32",                    [this]{ cmdSetBeamMode(Beam::Mode::BEGIN32);                        }},
+            { "sharp2",                     [this]{ changeAccidental(AccidentalType::SHARP2);                   }},
+            { "sharp",                      [this]{ changeAccidental(AccidentalType::SHARP);                    }},
+            { "nat",                        [this]{ changeAccidental(AccidentalType::NATURAL);                  }},
+            { "flat",                       [this]{ changeAccidental(AccidentalType::FLAT);                     }},
+            { "flat2",                      [this]{ changeAccidental(AccidentalType::FLAT2);                    }},
+            { "flip",                       [this]{ cmdFlip();                                                  }},
+            { "stretch+",                   [this]{ cmdAddStretch(0.1);                                         }},
+            { "stretch-",                   [this]{ cmdAddStretch(-0.1);                                        }},
+            { "pitch-spell",                [this]{ spell();                                                    }},
+            { "select-all",                 [this]{ cmdSelectAll();                                             }},
+            { "select-section",             [this]{ cmdSelectSection();                                         }},
+            { "add-brackets",               [this]{ cmdAddBracket();                                            }},
+            { "acciaccatura",               [this]{ cmdAddGrace(NoteType::ACCIACCATURA, MScore::division / 2);  }},
+            { "appoggiatura",               [this]{ cmdAddGrace(NoteType::APPOGGIATURA, MScore::division / 2);  }},
+            { "grace4",                     [this]{ cmdAddGrace(NoteType::GRACE4, MScore::division);            }},
+            { "grace16",                    [this]{ cmdAddGrace(NoteType::GRACE16, MScore::division / 4);       }},
+            { "grace32",                    [this]{ cmdAddGrace(NoteType::GRACE32, MScore::division / 8);       }},
+            { "grace8after",                [this]{ cmdAddGrace(NoteType::GRACE8_AFTER, MScore::division / 2);  }},
+            { "grace16after",               [this]{ cmdAddGrace(NoteType::GRACE16_AFTER, MScore::division / 4); }},
+            { "grace32after",               [this]{ cmdAddGrace(NoteType::GRACE32_AFTER, MScore::division / 8); }},
+            { "explode",                    [this]{ cmdExplode();                                               }},
+            { "implode",                    [this]{ cmdImplode();                                               }},
+            { "slash-fill",                 [this]{ cmdSlashFill();                                             }},
+            { "slash-rhythm",               [this]{ cmdSlashRhythm();                                           }},
+            { "resequence-rehearsal-marks", [this]{ cmdResequenceRehearsalMarks();                              }},
+            { "del-empty-measures",         [this]{ cmdRemoveEmptyTrailingMeasures();                           }},
+            { "add-audio",                  [this]{ addAudioTrack();                                            }},
+            { "transpose-up",               [this]{ transposeSemitone(1);                                       }},
+            { "transpose-down",             [this]{ transposeSemitone(-1);                                      }},
+            { "delete",                     [this]{ cmdDeleteSelection();                                       }},
+            { "full-measure-rest",          [this]{ cmdFullMeasureRest();                                       }},
+            { "toggle-insert-mode",         [this]{ _is.setInsertMode(!_is.insertMode());                       }},
+            { "pitch-up",                   [this]{ cmdPitchUp();                                               }},
+            { "pitch-down",                 [this]{ cmdPitchDown();                                             }},
+            { "time-delete",                [this]{ cmdTimeDelete();                                            }},
+            { "pitch-up-octave",            [this]{ cmdPitchUpOctave();                                         }},
+            { "pitch-down-octave",          [this]{ cmdPitchDownOctave();                                       }},
+            { "pad-note-increase-TAB",      [this]{ cmdPadNoteIncreaseTAB();                                    }},
+            { "pad-note-decrease-TAB",      [this]{ cmdPadNoteDecreaseTAB();                                    }},
+            { "toggle-mmrest",              [this]{ cmdToggleMmrest();                                          }},
+            { "toggle-hide-empty",          [this]{ cmdToggleHideEmpty();                                       }},
+            { "set-visible",                [this]{ cmdSetVisible();                                            }},
+            { "unset-visible",              [this]{ cmdUnsetVisible();                                          }},
+            { "system-break",               [this]{ cmdToggleLayoutBreak(LayoutBreak::Type::LINE);              }},
+            { "page-break",                 [this]{ cmdToggleLayoutBreak(LayoutBreak::Type::PAGE);              }},
+            { "section-break",              [this]{ cmdToggleLayoutBreak(LayoutBreak::Type::SECTION);           }},
+            { "",                           [this]{                                                             }},
+            };
+
+      for (const auto& c : cmdList) {
+            if (cmd == c.name) {
+                  startCmd();
+                  c.cmd();
+                  endCmd();
+                  return;
+                  }
+            }
+      qDebug("unknown cmd <%s>", qPrintable(cmd));
+      }
+
 }
 

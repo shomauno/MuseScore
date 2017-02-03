@@ -24,8 +24,7 @@
 #include "pitchspelling.h"
 #include "shape.h"
 #include "tremolo.h"
-
-class QPainter;
+#include "key.h"
 
 namespace Ms {
 
@@ -61,18 +60,70 @@ class NoteHead : public Symbol {
       enum class Group : signed char {
             HEAD_NORMAL = 0,
             HEAD_CROSS,
-            HEAD_DIAMOND,
-            HEAD_TRIANGLE,
-            HEAD_MI,
-            HEAD_SLASH,
+            HEAD_PLUS,
             HEAD_XCIRCLE,
+            HEAD_WITHX,
+            HEAD_TRIANGLE_UP,
+            HEAD_TRIANGLE_DOWN,
+            HEAD_SLASHED1,
+            HEAD_SLASHED2,
+            HEAD_DIAMOND,
+            HEAD_DIAMOND_OLD,
+            HEAD_CIRCLED,
+            HEAD_CIRCLED_LARGE,
+            HEAD_LARGE_ARROW,
+            HEAD_BREVIS_ALT,
+
+            HEAD_SLASH,
+
+            HEAD_SOL,
+            HEAD_LA,
+            HEAD_FA,
+            HEAD_MI,
             HEAD_DO,
             HEAD_RE,
-            HEAD_FA,
-            HEAD_LA,
             HEAD_TI,
-            HEAD_SOL,
-            HEAD_BREVIS_ALT,
+            // not exposed from here
+            HEAD_DO_WALKER,
+            HEAD_RE_WALKER,
+            HEAD_TI_WALKER,
+            HEAD_DO_FUNK,
+            HEAD_RE_FUNK,
+            HEAD_TI_FUNK,
+
+            HEAD_DO_NAME,
+            HEAD_RE_NAME,
+            HEAD_MI_NAME,
+            HEAD_FA_NAME,
+            HEAD_SOL_NAME,
+            HEAD_LA_NAME,
+            HEAD_TI_NAME,
+            HEAD_SI_NAME,
+
+            HEAD_A_SHARP,
+            HEAD_A,
+            HEAD_A_FLAT,
+            HEAD_B_SHARP,
+            HEAD_B,
+            HEAD_B_FLAT,
+            HEAD_C_SHARP,
+            HEAD_C,
+            HEAD_C_FLAT,
+            HEAD_D_SHARP,
+            HEAD_D,
+            HEAD_D_FLAT,
+            HEAD_E_SHARP,
+            HEAD_E,
+            HEAD_E_FLAT,
+            HEAD_F_SHARP,
+            HEAD_F,
+            HEAD_F_FLAT,
+            HEAD_G_SHARP,
+            HEAD_G,
+            HEAD_G_FLAT,
+            HEAD_H,
+            HEAD_H_SHARP,
+
             HEAD_GROUPS,
             HEAD_INVALID = -1
             };
@@ -88,11 +139,16 @@ class NoteHead : public Symbol {
       NoteHead(Score* s = 0) : Symbol(s) {}
       NoteHead &operator=(const NoteHead&) = delete;
       virtual NoteHead* clone() const override    { return new NoteHead(*this); }
-      virtual Element::Type type() const override { return Element::Type::NOTEHEAD; }
+      virtual ElementType type() const override { return ElementType::NOTEHEAD; }
 
       Group headGroup() const;
 
-      static const char* groupToGroupName(Group group);
+      static QString group2userName(Group group);
+      static QString type2userName(Type type);
+      static QString group2name(Group group);
+      static QString type2name(Type type);
+      static Group name2group(QString s);
+      static Type name2type(QString s);
       };
 
 //---------------------------------------------------------
@@ -171,8 +227,8 @@ class Note : public Element {
       Q_PROPERTY(Ms::Tie*                       tieBack           READ tieBack)
       Q_PROPERTY(Ms::Tie*                       tieFor            READ tieFor)
       Q_PROPERTY(int                            tpc               READ tpc)
-      Q_PROPERTY(int                            tpc1              READ tpc1               WRITE undoSetTpc1)
-      Q_PROPERTY(int                            tpc2              READ tpc2               WRITE undoSetTpc2)
+//      Q_PROPERTY(int                            tpc1              READ tpc1               WRITE undoSetTpc1)
+//      Q_PROPERTY(int                            tpc2              READ tpc2               WRITE undoSetTpc2)
       Q_PROPERTY(qreal                          tuning            READ tuning             WRITE undoSetTuning)
 //TODO-WS      Q_PROPERTY(Ms::MScore::Direction          userDotPosition   READ userDotPosition    WRITE undoSetUserDotPosition)
       Q_PROPERTY(Ms::MScore::DirectionH         userMirror        READ userMirror         WRITE undoSetUserMirror)
@@ -238,6 +294,9 @@ class Note : public Element {
       QVector<Spanner*> _spannerFor;
       QVector<Spanner*> _spannerBack;
 
+      SymId _cachedNoteheadSym; // use in draw to avoid recomputing at every update
+      SymId _cachedSymNull; // additional symbol for some transparent notehead
+
       virtual QRectF drag(EditData*) override;
       void endDrag();
       void endEdit();
@@ -245,6 +304,8 @@ class Note : public Element {
       void removeSpanner(Spanner*);
       int concertPitchIdx() const;
       void updateRelLine(int relLine, bool undoable);
+      bool isNoteName() const;
+      SymId noteHead() const;
 
    public:
       Note(Score* s = 0);
@@ -253,7 +314,7 @@ class Note : public Element {
 
       Note& operator=(const Note&) = delete;
       virtual Note* clone() const override  { return new Note(*this, false); }
-      Element::Type type() const override   { return Element::Type::NOTE; }
+      ElementType type() const override   { return ElementType::NOTE; }
 
       virtual qreal mag() const override;
 
@@ -271,7 +332,6 @@ class Note : public Element {
       QPointF stemDownNW() const;
       QPointF stemUpSE() const;
 
-      SymId noteHead() const;
       NoteHead::Group headGroup() const   { return _headGroup; }
       NoteHead::Type headType() const     { return _headType;  }
       void setHeadGroup(NoteHead::Group val);
@@ -306,8 +366,8 @@ class Note : public Element {
       void setTpcFromPitch();
       int tpc1default(int pitch) const;
       int tpc2default(int pitch) const;
-      void undoSetTpc1(int tpc)      { undoChangeProperty(P_ID::TPC1, tpc); }
-      void undoSetTpc2(int tpc)      { undoChangeProperty(P_ID::TPC2, tpc); }
+//      void undoSetTpc1(int tpc)      { undoChangeProperty(P_ID::TPC1, tpc); }
+//      void undoSetTpc2(int tpc)      { undoChangeProperty(P_ID::TPC2, tpc); }
       int transposeTpc(int tpc);
 
       Accidental* accidental() const      { return _accidental; }
@@ -317,7 +377,7 @@ class Note : public Element {
       void setAccidentalType(AccidentalType type);
 
       int line() const;
-      void setLine(int n);
+      void setLine(int n)             { _line = n;      }
       int physicalLine() const;
 
       int fret() const                { return _fret;   }
@@ -350,11 +410,11 @@ class Note : public Element {
 
       Chord* chord() const            { return (Chord*)parent(); }
       void setChord(Chord* a)         { setParent((Element*)a);  }
-      void draw(QPainter*) const;
+      virtual void draw(QPainter*) const override;
 
       virtual void read(XmlReader&) override;
       virtual bool readProperties(XmlReader&) override;
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter&) const override;
 
       bool acceptDrop(const DropData&) const override;
       Element* drop(const DropData&);
@@ -367,8 +427,8 @@ class Note : public Element {
       NoteType noteType() const;
       QString  noteTypeUserName() const;
 
-      ElementList el()                            { return _el; }
-      const ElementList el() const                { return _el; }
+      ElementList& el()                           { return _el; }
+      const ElementList& el() const               { return _el; }
       QQmlListProperty<Ms::Element> qmlElements() { return QmlListAccess<Ms::Element>(this, _el); }
 
       int subchannel() const                    { return _subchannel; }
@@ -392,7 +452,7 @@ class Note : public Element {
       void setOffTimeOffset(int v);
 
       int customizeVelocity(int velo) const;
-      NoteDot* dot(int n)                       { return _dots[n];          }
+      NoteDot* dot(int n)                         { return _dots[n];          }
       const QVector<NoteDot*>& dots() const       { return _dots;             }
       QVector<NoteDot*>& dots()                   { return _dots;             }
 
@@ -410,9 +470,9 @@ class Note : public Element {
       const QVector<Spanner*>& spannerFor() const   { return _spannerFor;         }
       const QVector<Spanner*>& spannerBack() const  { return _spannerBack;        }
 
-      void addSpannerBack(Spanner* e)            { _spannerBack.push_back(e);  }
+      void addSpannerBack(Spanner* e)            { if (!_spannerBack.contains(e)) _spannerBack.push_back(e);  }
       bool removeSpannerBack(Spanner* e)         { return _spannerBack.removeOne(e); }
-      void addSpannerFor(Spanner* e)             { _spannerFor.push_back(e);         }
+      void addSpannerFor(Spanner* e)             { if (!_spannerFor.contains(e)) _spannerFor.push_back(e);    }
       bool removeSpannerFor(Spanner* e)          { return _spannerFor.removeOne(e);  }
 
       void transposeDiatonic(int interval, bool keepAlterations, bool useDoubleAccidentals);
@@ -442,8 +502,9 @@ class Note : public Element {
       virtual void setScore(Score* s) override;
       void setDotY(Direction);
 
-      void addBracket();
+      void addParentheses();
 
+      static SymId noteHead(int direction, NoteHead::Group, NoteHead::Type, int tpc, Key key, NoteHeadScheme scheme);
       static SymId noteHead(int direction, NoteHead::Group, NoteHead::Type);
       NoteVal noteVal() const;
 
@@ -462,9 +523,6 @@ class Note : public Element {
       int offTimeType() const    { return _offTimeType; }
       int onTimeType() const     { return _onTimeType; }
       };
-
-// extern const SymId noteHeads[2][int(NoteHead::Group::HEAD_GROUPS)][int(NoteHead::Type::HEAD_TYPES)];
-
 
 }     // namespace Ms
 

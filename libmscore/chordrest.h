@@ -54,6 +54,7 @@ class ChordRest : public DurationElement {
       Q_PROPERTY(int            durationType  READ durationTypeTicks  WRITE setDurationType)
       Q_PROPERTY(bool           small         READ small              WRITE undoSetSmall)
 
+      ElementList _el;
       TDuration _durationType;
       int _staffMove;         // -1, 0, +1, used for crossbeaming
 
@@ -79,7 +80,7 @@ class ChordRest : public DurationElement {
       ChordRest &operator=(const ChordRest&) = delete;
       ~ChordRest();
 
-      virtual Element::Type type() const = 0;
+      virtual ElementType type() const = 0;
 
       virtual Element* drop(const DropData&) override;
       virtual void undoUnlink() override;
@@ -87,7 +88,7 @@ class ChordRest : public DurationElement {
       virtual Segment* segment() const  { return (Segment*)parent(); }
       virtual Measure* measure() const = 0;
 
-      virtual void writeProperties(Xml& xml) const;
+      virtual void writeProperties(XmlWriter& xml) const;
       virtual bool readProperties(XmlReader&);
       virtual void scanElements(void* data, void (*func)(void*, Element*), bool all=true);
 
@@ -125,7 +126,7 @@ class ChordRest : public DurationElement {
       void setStaffMove(int val)                { _staffMove = val; }
       virtual int vStaffIdx() const override    { return staffIdx() + _staffMove;  }
 
-      void layout0(AccidentalState*);
+//      void layout0(AccidentalState*);
       void layoutArticulations();
 
       const TDuration durationType() const      { return _crossMeasure == CrossMeasure::FIRST ?
@@ -156,6 +157,9 @@ class ChordRest : public DurationElement {
       virtual void remove(Element*);
       void removeDeleteBeam(bool beamed);
 
+      ElementList& el()                            { return _el; }
+      const ElementList& el() const                { return _el; }
+
       CrossMeasure crossMeasure() const            { return _crossMeasure; }
       void setCrossMeasure(CrossMeasure val)       { _crossMeasure = val;  }
       virtual void crossMeasureSetup(bool /*on*/)   { }
@@ -170,7 +174,7 @@ class ChordRest : public DurationElement {
       bool isGrace() const;
       bool isGraceBefore() const;
       bool isGraceAfter() const;
-      void writeBeam(Xml& xml);
+      void writeBeam(XmlWriter& xml);
       Segment* nextSegmentAfterCR(Segment::Type types) const;
 
       virtual void setScore(Score* s) override;
@@ -182,6 +186,7 @@ class ChordRest : public DurationElement {
       virtual void computeUp()   { _up = true; };
 
       bool isFullMeasureRest() const { return _durationType == TDuration::DurationType::V_MEASURE; }
+      virtual void removeMarkings(bool keepTremolo = false);
       };
 
 

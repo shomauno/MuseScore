@@ -112,7 +112,7 @@ void KeyCanvas::paintEvent(QPaintEvent*)
       painter.fillRect(background, Qt::white);
 
       QPen pen(Qt::black);
-      pen.setWidthF(MScore::defaultStyle()->value(StyleIdx::staffLineWidth).toDouble() * gscore->spatium());
+      pen.setWidthF(MScore::defaultStyle().value(StyleIdx::staffLineWidth).toDouble() * gscore->spatium());
       painter.setPen(pen);
 
       for (int i = 0; i < 5; ++i) {
@@ -194,12 +194,12 @@ void KeyCanvas::dragEnterEvent(QDragEnterEvent* event)
       if (data->hasFormat(mimeSymbolFormat)) {
             QByteArray a = data->data(mimeSymbolFormat);
 
-            XmlReader e(a);
+            XmlReader e(gscore, a);
 
             QPointF dragOffset;
             Fraction duration;
-            Element::Type type = Element::readType(e, &dragOffset, &duration);
-            if (type != Element::Type::ACCIDENTAL)
+            ElementType type = Element::readType(e, &dragOffset, &duration);
+            if (type != ElementType::ACCIDENTAL)
                   return;
 
             event->acceptProposedAction();

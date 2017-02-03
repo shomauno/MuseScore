@@ -129,6 +129,7 @@ void MasterPalette::addPalette(Palette* sp)
       psa->setRestrictHeight(false);
       QTreeWidgetItem* item = new QTreeWidgetItem(QStringList(sp->name()));
       item->setData(0, Qt::UserRole, stack->count());
+      item->setText(0, qApp->translate("Palette", sp->name().toUtf8().data()).replace("&&","&"));
       stack->addWidget(psa);
       treeWidget->addTopLevelItem(item);
       }
@@ -140,6 +141,7 @@ void MasterPalette::addPalette(Palette* sp)
 MasterPalette::MasterPalette(QWidget* parent)
    : QWidget(parent, Qt::Dialog)
       {
+      setObjectName("MasterPalette");
       setupUi(this);
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
@@ -183,6 +185,7 @@ MasterPalette::MasterPalette(QWidget* parent)
 
       symbolItem = new QTreeWidgetItem();
       symbolItem->setData(0, Qt::UserRole, -1);
+      symbolItem->setText(0, QT_TRANSLATE_NOOP("MasterPalette", "Symbols"));
       treeWidget->addTopLevelItem(symbolItem);
 
       for (const QString& s : smuflRanges()->keys()) {
@@ -195,6 +198,8 @@ MasterPalette::MasterPalette(QWidget* parent)
       connect(treeWidget, &QTreeWidget::currentItemChanged, this, &MasterPalette::currentChanged);
       connect(treeWidget, &QTreeWidget::itemClicked, this, &MasterPalette::clicked);
       retranslate(true);
+
+      MuseScore::restoreGeometry(this);
       }
 
 //---------------------------------------------------------
@@ -203,9 +208,9 @@ MasterPalette::MasterPalette(QWidget* parent)
 
 void MasterPalette::retranslate(bool firstTime)
       {
-      keyItem->setText(0, tr("Key Signatures"));
-      timeItem->setText(0, tr("Time Signatures"));
-      symbolItem->setText(0, tr("Symbols"));
+      keyItem->setText(0, qApp->translate("Palette", "Key Signatures"));
+      timeItem->setText(0, qApp->translate("Palette", "Time Signatures"));
+      symbolItem->setText(0, qApp->translate("MasterPalette", "Symbols"));
       if (!firstTime)
             retranslateUi(this);
       }
@@ -238,6 +243,7 @@ void MasterPalette::clicked(QTreeWidgetItem* item, int)
 
 void MasterPalette::closeEvent(QCloseEvent* ev)
       {
+      MuseScore::saveGeometry(this);
       if (timeDialog->dirty())
             timeDialog->save();
       if (keyEditor->dirty())

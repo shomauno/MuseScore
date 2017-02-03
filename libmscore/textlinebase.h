@@ -13,12 +13,12 @@
 #ifndef __TEXTLINEBASE_H__
 #define __TEXTLINEBASE_H__
 
-#include "mscore.h"
 #include "line.h"
 #include "style.h"
 
 namespace Ms {
 
+enum class SubStyle;
 class TextLineBase;
 class Element;
 class Text;
@@ -91,10 +91,10 @@ class TextLineBase : public SLine {
 
       virtual void setScore(Score* s) override;
 
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter& xml) const override;
       virtual void read(XmlReader&) override;
 
-      virtual void writeProperties(Xml& xml) const override;
+      virtual void writeProperties(XmlWriter& xml) const override;
       virtual bool readProperties(XmlReader& node) override;
 
       bool lineVisible() const                { return _lineVisible;          }
@@ -120,9 +120,9 @@ class TextLineBase : public SLine {
       void createContinueTextElement();
       void createEndTextElement();
 
-      void setBeginText(const QString& s, TextStyleType style);
-      void setContinueText(const QString& s, TextStyleType style);
-      void setEndText(const QString& s, TextStyleType style);
+      void setBeginText(const QString& s, SubStyle style);
+      void setContinueText(const QString& s, SubStyle style);
+      void setEndText(const QString& s, SubStyle style);
 
       void setBeginText(const QString&);
       void setContinueText(const QString&);

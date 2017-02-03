@@ -311,26 +311,26 @@ void MTrack::processMeta(int tick, const MidiEvent& mm)
                   Text* text = new Text(cs);
                   switch(mm.metaType()) {
                         case META_COMPOSER:
-                              text->setTextStyleType(TextStyleType::COMPOSER);
+                              text->setSubStyle(SubStyle::COMPOSER);
                               break;
                         case META_TRANSLATOR:
-                              text->setTextStyleType(TextStyleType::TRANSLATOR);
+                              text->setSubStyle(SubStyle::TRANSLATOR);
                               break;
                         case META_POET:
-                              text->setTextStyleType(TextStyleType::POET);
+                              text->setSubStyle(SubStyle::POET);
                               break;
                         case META_SUBTITLE:
-                              text->setTextStyleType(TextStyleType::SUBTITLE);
+                              text->setSubStyle(SubStyle::SUBTITLE);
                               break;
                         case META_TITLE:
-                              text->setTextStyleType(TextStyleType::TITLE);
+                              text->setSubStyle(SubStyle::TITLE);
                               break;
                         }
 
                   text->setPlainText((const char*)(mm.edata()));
 
                   MeasureBase* measure = cs->first();
-                  if (measure->type() != Element::Type::VBOX) {
+                  if (!measure->isVBox()) {
                         measure = new VBox(cs);
                         measure->setTick(0);
                         measure->setNext(cs->first());
@@ -424,7 +424,7 @@ void MTrack::fillGapWithRests(Score* score,
                         Rest* rest = new Rest(score, duration);
                         rest->setDuration(measure->len());
                         rest->setTrack(track);
-                        Segment* s = measure->getSegment(rest, startChordTick.ticks());
+                        Segment* s = measure->getSegment(Segment::Type::ChordRest, startChordTick.ticks());
                         s->add(rest);
                         }
                   restLen -= len;
@@ -557,7 +557,7 @@ void MTrack::processPendingNotes(QList<MidiChord> &midiChords,
                   chord->add(a);
                   }
 
-            Segment* s = measure->getSegment(chord, tick.ticks());
+            Segment* s = measure->getSegment(Segment::Type::ChordRest, tick.ticks());
             s->add(chord);
             MidiTuplet::addElementToTuplet(voice, tick, len, chord, tuplets);
 
@@ -703,6 +703,9 @@ std::multimap<int, MTrack> createMTrackList(TimeSigMap *sigmap, const MidiFile *
                         }
                   else if (e.type() == ME_PROGRAM)
                         track.program = e.dataB();
+                  else if (e.type() == ME_CONTROLLER && e.controller() == CTRL_VOLUME) {
+                        track.volumes.insert({tick, e.value()});
+                        }
                   }
             if (hasNotes) {
                   ++trackIndex;
@@ -869,7 +872,7 @@ void setTrackInfo(MidiType midiType, MTrack &mt)
 
       if (mt.staff->isTop()) {
             Part *part  = mt.staff->part();
-            part->setLongName(Xml::xmlString(MidiInstr::concatenateWithComma(trackInstrName, mt.name)));
+            part->setLongName(XmlWriter::xmlString(MidiInstr::concatenateWithComma(trackInstrName, mt.name)));
             part->setPartName(part->longName());
             part->setMidiChannel(mt.mtrack->outChannel());
             int bank = 0;
@@ -911,7 +914,7 @@ void createTimeSignatures(Score *score)
                   TimeSig* ts = new TimeSig(score);
                   ts->setSig(newTimeSig);
                   ts->setTrack(staffIdx * VOICES);
-                  Segment* seg = m->getSegment(ts, tick);
+                  Segment* seg = m->getSegment(Segment::Type::TimeSig, tick);
                   seg->add(ts);
                   }
             if (newTimeSig != se.timesig())   // was a pickup measure - skip next timesig

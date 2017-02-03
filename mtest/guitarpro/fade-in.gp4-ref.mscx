@@ -38,14 +38,6 @@
     <metaTag name="translator"></metaTag>
     <metaTag name="workNumber"></metaTag>
     <metaTag name="workTitle"></metaTag>
-    <PageList>
-      <Page>
-        <System>
-          </System>
-        <System>
-          </System>
-        </Page>
-      </PageList>
     <Part>
       <Staff id="1">
         <StaffType group="pitched">
@@ -97,44 +89,29 @@
           <lid>4</lid>
           <text><sym>metNoteQuarterUp</sym> = 120</text>
           </Tempo>
-        <Tempo>
-          <tempo>2</tempo>
-          <lid>5</lid>
-          <text><sym>metNoteQuarterUp</sym> = 120</text>
-          </Tempo>
-        <Tempo>
-          <tempo>2</tempo>
-          <lid>6</lid>
-          <text><sym>metNoteQuarterUp</sym> = 120</text>
-          </Tempo>
-        <Tempo>
-          <tempo>2</tempo>
-          <lid>7</lid>
-          <text><sym>metNoteQuarterUp</sym> = 120</text>
-          </Tempo>
         <Rest>
-          <lid>8</lid>
+          <lid>5</lid>
           <durationType>quarter</durationType>
           </Rest>
         <Rest>
-          <lid>9</lid>
+          <lid>6</lid>
           <durationType>quarter</durationType>
           </Rest>
         <Dynamic>
           <subtype>mp</subtype>
           <velocity>64</velocity>
-          <lid>10</lid>
+          <lid>7</lid>
           </Dynamic>
         <Chord>
-          <lid>12</lid>
+          <lid>9</lid>
           <durationType>quarter</durationType>
           <Articulation>
             <subtype>guitarFadeIn</subtype>
-            <lid>11</lid>
+            <lid>8</lid>
             <anchor>0</anchor>
             </Articulation>
           <Note>
-            <lid>13</lid>
+            <lid>10</lid>
             <pitch>59</pitch>
             <tpc>19</tpc>
             <fret>0</fret>
@@ -142,7 +119,7 @@
             </Note>
           </Chord>
         <Rest>
-          <lid>14</lid>
+          <lid>11</lid>
           <durationType>quarter</durationType>
           </Rest>
         </Measure>
@@ -175,14 +152,6 @@
       <showUnprintable>1</showUnprintable>
       <showFrames>1</showFrames>
       <showMargins>0</showMargins>
-      <PageList>
-        <Page>
-          <System>
-            </System>
-          <System>
-            </System>
-          </Page>
-        </PageList>
       <Part>
         <Staff id="1">
           <linkedTo>1</linkedTo>
@@ -265,44 +234,29 @@
             <lid>4</lid>
             <text><sym>metNoteQuarterUp</sym> = 120</text>
             </Tempo>
-          <Tempo>
-            <tempo>2</tempo>
-            <lid>5</lid>
-            <text><sym>metNoteQuarterUp</sym> = 120</text>
-            </Tempo>
-          <Tempo>
-            <tempo>2</tempo>
-            <lid>6</lid>
-            <text><sym>metNoteQuarterUp</sym> = 120</text>
-            </Tempo>
-          <Tempo>
-            <tempo>2</tempo>
-            <lid>7</lid>
-            <text><sym>metNoteQuarterUp</sym> = 120</text>
-            </Tempo>
           <Rest>
-            <lid>8</lid>
+            <lid>5</lid>
             <durationType>quarter</durationType>
             </Rest>
           <Rest>
-            <lid>9</lid>
+            <lid>6</lid>
             <durationType>quarter</durationType>
             </Rest>
           <Dynamic>
             <subtype>mp</subtype>
             <velocity>64</velocity>
-            <lid>10</lid>
+            <lid>7</lid>
             </Dynamic>
           <Chord>
-            <lid>12</lid>
+            <lid>9</lid>
             <durationType>quarter</durationType>
             <Articulation>
               <subtype>guitarFadeIn</subtype>
-              <lid>11</lid>
+              <lid>8</lid>
               <anchor>0</anchor>
               </Articulation>
             <Note>
-              <lid>13</lid>
+              <lid>10</lid>
               <pitch>59</pitch>
               <tpc>19</tpc>
               <fret>0</fret>
@@ -310,7 +264,7 @@
               </Note>
             </Chord>
           <Rest>
-            <lid>14</lid>
+            <lid>11</lid>
             <durationType>quarter</durationType>
             </Rest>
           </Measure>
@@ -322,23 +276,23 @@
             <accidental>0</accidental>
             </KeySig>
           <Rest>
-            <lid>8</lid>
+            <lid>5</lid>
             <durationType>quarter</durationType>
             </Rest>
           <Rest>
-            <lid>9</lid>
+            <lid>6</lid>
             <durationType>quarter</durationType>
             </Rest>
           <Chord>
-            <lid>12</lid>
+            <lid>9</lid>
             <durationType>quarter</durationType>
             <Articulation>
               <subtype>guitarFadeIn</subtype>
-              <lid>11</lid>
+              <lid>8</lid>
               <anchor>0</anchor>
               </Articulation>
             <Note>
-              <lid>13</lid>
+              <lid>10</lid>
               <pitch>59</pitch>
               <tpc>19</tpc>
               <fret>0</fret>
@@ -346,7 +300,7 @@
               </Note>
             </Chord>
           <Rest>
-            <lid>14</lid>
+            <lid>11</lid>
             <durationType>quarter</durationType>
             </Rest>
           </Measure>

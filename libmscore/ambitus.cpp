@@ -180,7 +180,7 @@ void Ambitus::setBottomTpc(int val)
 //   write
 //---------------------------------------------------------
 
-void Ambitus::write(Xml& xml) const
+void Ambitus::write(XmlWriter& xml) const
       {
       xml.stag("Ambitus");
       xml.tag(P_ID::HEAD_GROUP, int(_noteHeadGroup), int(NOTEHEADGROUP_DEFAULT));
@@ -213,44 +213,57 @@ void Ambitus::write(Xml& xml) const
 void Ambitus::read(XmlReader& e)
       {
       while (e.readNextStartElement()) {
-            const QStringRef& tag(e.name());
-            if (tag == "head")
-                  setProperty(P_ID::HEAD_GROUP, Ms::getProperty(P_ID::HEAD_GROUP, e));
-            else if (tag == "headType")
-                  setProperty(P_ID::HEAD_TYPE, Ms::getProperty(P_ID::HEAD_TYPE, e).toInt());
-            else if (tag == "mirror")
-                  setProperty(P_ID::MIRROR_HEAD, Ms::getProperty(P_ID::MIRROR_HEAD, e).toInt());
-            else if (tag == "hasLine")
-                  setHasLine(e.readInt());
-            else if (tag == "lineWidth")
-                  setProperty(P_ID::LINE_WIDTH, Ms::getProperty(P_ID::LINE_WIDTH, e));
-            else if (tag == "topPitch")
-                  _topPitch = e.readInt();
-            else if (tag == "bottomPitch")
-                  _bottomPitch = e.readInt();
-            else if (tag == "topTpc")
-                  _topTpc = e.readInt();
-            else if (tag == "bottomTpc")
-                  _bottomTpc = e.readInt();
-            else if (tag == "topAccidental") {
-                  while (e.readNextStartElement()) {
-                        if (e.name() == "Accidental")
-                              _topAccid.read(e);
-                        else
-                              e.skipCurrentElement();
-                        }
-                  }
-            else if (tag == "bottomAccidental") {
-                  while (e.readNextStartElement()) {
-                        if (e.name() == "Accidental")
-                              _bottomAccid.read(e);
-                        else
-                              e.skipCurrentElement();
-                        }
-                  }
-            else if (!Element::readProperties(e))
+            if (!readProperties(e))
                   e.unknown();
             }
+      }
+
+//---------------------------------------------------------
+//   readProperties
+//---------------------------------------------------------
+
+bool Ambitus::readProperties(XmlReader& e)
+      {
+      const QStringRef& tag(e.name());
+      if (tag == "head")
+            setProperty(P_ID::HEAD_GROUP, Ms::getProperty(P_ID::HEAD_GROUP, e));
+      else if (tag == "headType")
+            setProperty(P_ID::HEAD_TYPE, Ms::getProperty(P_ID::HEAD_TYPE, e));
+      else if (tag == "mirror")
+            setProperty(P_ID::MIRROR_HEAD, Ms::getProperty(P_ID::MIRROR_HEAD, e).toInt());
+      else if (tag == "hasLine")
+            setHasLine(e.readInt());
+      else if (tag == "lineWidth")
+            setProperty(P_ID::LINE_WIDTH, Ms::getProperty(P_ID::LINE_WIDTH, e));
+      else if (tag == "topPitch")
+            _topPitch = e.readInt();
+      else if (tag == "bottomPitch")
+            _bottomPitch = e.readInt();
+      else if (tag == "topTpc")
+            _topTpc = e.readInt();
+      else if (tag == "bottomTpc")
+            _bottomTpc = e.readInt();
+      else if (tag == "topAccidental") {
+            while (e.readNextStartElement()) {
+                  if (e.name() == "Accidental")
+                        _topAccid.read(e);
+                  else
+                        e.skipCurrentElement();
+                  }
+            }
+      else if (tag == "bottomAccidental") {
+            while (e.readNextStartElement()) {
+                  if (e.name() == "Accidental")
+                        _bottomAccid.read(e);
+                  else
+                        e.skipCurrentElement();
+                  }
+            }
+      else if (Element::readProperties(e))
+            ;
+      else
+            return false;
+      return true;
       }
 
 //---------------------------------------------------------
@@ -271,8 +284,8 @@ void Ambitus::layout()
       if (segm && track() > -1) {
             int tick    = segm->tick();
             stf         = score()->staff(staffIdx());
-            lineDist    = stf->lineDistance() * _spatium;
-            numOfLines  = stf->lines();
+            lineDist    = stf->lineDistance(tick) * _spatium;
+            numOfLines  = stf->lines(tick);
             clf         = stf->clef(tick);
             }
       else {                              // for use in palettes
@@ -432,9 +445,10 @@ void Ambitus::draw(QPainter* p) const
 
       // draw ledger lines (if not in a palette)
       if (segment() && track() > -1) {
+            int tick          = segment()->tick();
             Staff* stf        = score()->staff(staffIdx());
-            qreal lineDist    = stf->lineDistance();
-            int numOfLines    = stf->lines();
+            qreal lineDist    = stf->lineDistance(tick);
+            int numOfLines    = stf->lines(tick);
             qreal step        = lineDist * _spatium;
             qreal stepTolerance = step * 0.1;
             qreal ledgerOffset = score()->styleS(StyleIdx::ledgerLineLength).val() * 0.5 * _spatium;
@@ -568,7 +582,7 @@ void Ambitus::updateRange()
             // scan all relevant tracks of this segment for chords
             for (trk=firstTrack; trk <= lastTrack; trk++)
                   if ( (chord=static_cast<Chord*>(segm->element(trk))) != nullptr
-                              && chord->type() == Element::Type::CHORD) {
+                              && chord->type() == ElementType::CHORD) {
                         // update pitch range (with associated tpc's)
                         foreach (Note* n, chord->notes()) {
                               if (!n->play())         // skip notes which are not to be played
@@ -730,10 +744,10 @@ Element* Ambitus::prevElement()
 
 QString Ambitus::accessibleInfo() const
       {
-      return tr("%1; Top pitch: %2%3; Bottom pitch: %4%5").arg(Element::accessibleInfo())\
-                                                          .arg(tpc2name(topTpc(), NoteSpellingType::STANDARD, NoteCaseType::AUTO, false))\
-                                                          .arg(QString::number(topOctave()))\
-                                                          .arg(tpc2name(bottomTpc(), NoteSpellingType::STANDARD, NoteCaseType::AUTO, false))\
+      return tr("%1; Top pitch: %2%3; Bottom pitch: %4%5").arg(Element::accessibleInfo())
+                                                          .arg(tpc2name(topTpc(), NoteSpellingType::STANDARD, NoteCaseType::AUTO, false))
+                                                          .arg(QString::number(topOctave()))
+                                                          .arg(tpc2name(bottomTpc(), NoteSpellingType::STANDARD, NoteCaseType::AUTO, false))
                                                           .arg(QString::number(bottomOctave()));
       }
 
@@ -743,11 +757,7 @@ QString Ambitus::accessibleInfo() const
 
 QString Ambitus::screenReaderInfo() const
       {
-      return tr("%1; Top pitch: %2%3; Bottom pitch: %4%5").arg(Element::screenReaderInfo())\
-                                                          .arg(tpc2name(topTpc(), NoteSpellingType::STANDARD, NoteCaseType::AUTO, true))\
-                                                          .arg(QString::number(topOctave()))\
-                                                          .arg(tpc2name(bottomTpc(), NoteSpellingType::STANDARD, NoteCaseType::AUTO, true))\
-                                                          .arg(QString::number(bottomOctave()));
+      return accessibleInfo();
       }
 }
 

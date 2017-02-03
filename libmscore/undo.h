@@ -60,13 +60,12 @@ class Chord;
 class ChordRest;
 class Harmony;
 class SlurTie;
-struct MStaff;
+class MStaff;
 class MeasureBase;
 class Dynamic;
 class Selection;
 class Text;
 struct Channel;
-class PageFormat;
 class TextStyle;
 class Tuplet;
 class KeySig;
@@ -83,6 +82,7 @@ class Spanner;
 class BarLine;
 enum class ClefType : signed char;
 enum class PlayEventType : char;
+class Excerpt;
 
 #define UNDO_NAME(a)  virtual const char* name() const override { return a; }
 
@@ -379,38 +379,6 @@ class ChangeElement : public UndoCommand {
       };
 
 //---------------------------------------------------------
-//   ChangeBarLineSpan
-//---------------------------------------------------------
-
-class ChangeBarLineSpan : public UndoCommand {
-      Staff* staff;
-      int span;
-      int spanFrom;
-      int spanTo;
-      void flip();
-
-   public:
-      ChangeBarLineSpan(Staff*, int span, int spanFrom, int spanTo);
-      UNDO_NAME("ChangeBarLineSpan")
-      };
-
-//---------------------------------------------------------
-//   ChangeSingleBarLineSpan
-//---------------------------------------------------------
-
-class ChangeSingleBarLineSpan : public UndoCommand {
-      BarLine* barLine;
-      int span;
-      int spanFrom;
-      int spanTo;
-      void flip();
-
-   public:
-      ChangeSingleBarLineSpan(BarLine* barLine, int span, int spanFrom, int spanTo);
-      UNDO_NAME("ChangeSingleBarLineSpan")
-      };
-
-//---------------------------------------------------------
 //   TransposeHarmony
 //---------------------------------------------------------
 
@@ -602,26 +570,6 @@ class ChangePatch : public UndoCommand {
       };
 
 //---------------------------------------------------------
-//   ChangePageFormat
-//---------------------------------------------------------
-
-class ChangePageFormat : public UndoCommand {
-      Score* score;
-      PageFormat* pf;
-      qreal spatium;
-      int pageOffset;
-
-      void flip();
-
-   public:
-      ChangePageFormat(Score*, PageFormat*, qreal sp, int po);
-      ~ChangePageFormat();
-      virtual void undo() { flip(); }
-      virtual void redo() { flip(); }
-      UNDO_NAME("ChangePageFormat")
-      };
-
-//---------------------------------------------------------
 //   ChangeStaff
 //---------------------------------------------------------
 
@@ -671,35 +619,6 @@ class ChangePart : public UndoCommand {
    public:
       ChangePart(Part*, Instrument*, const QString& name);
       UNDO_NAME("ChangePart")
-      };
-
-//---------------------------------------------------------
-//   ChangeTextStyle
-//---------------------------------------------------------
-
-class ChangeTextStyle : public UndoCommand {
-      Score* score;
-      TextStyle style;
-      void flip();
-
-   public:
-      ChangeTextStyle(Score*, const TextStyle& style);
-      UNDO_NAME("ChangeTextStyle")
-      };
-
-//---------------------------------------------------------
-//   AddTextStyle
-//---------------------------------------------------------
-
-class AddTextStyle : public UndoCommand {
-      Score* score;
-      TextStyle style;
-
-   public:
-      AddTextStyle(Score* s, const TextStyle& st) : score(s), style(st) {}
-      virtual void undo();
-      virtual void redo();
-      UNDO_NAME("AddTextStyle")
       };
 
 //---------------------------------------------------------
@@ -766,13 +685,14 @@ class ChangeVelocity : public UndoCommand {
 //---------------------------------------------------------
 
 class ChangeMStaffProperties : public UndoCommand {
-      MStaff* mstaff;
+      Measure* measure;
+      int staffIdx;
       bool visible;
       bool slashStyle;
       void flip();
 
    public:
-      ChangeMStaffProperties(MStaff*, bool visible, bool slashStyle);
+      ChangeMStaffProperties(Measure*, int staffIdx, bool visible, bool slashStyle);
       UNDO_NAME("ChangeMStaffProperties")
       };
 
@@ -1030,13 +950,13 @@ class ChangeProperty : public UndoCommand {
       ScoreElement* element;
       P_ID id;
       QVariant property;
-      PropertyStyle propertyStyle;
+      PropertyFlags flags;
 
       void flip();
 
    public:
-      ChangeProperty(ScoreElement* e, P_ID i, const QVariant& v, PropertyStyle ps = PropertyStyle::NOSTYLE)
-         : element(e), id(i), property(v), propertyStyle(ps) {}
+      ChangeProperty(ScoreElement* e, P_ID i, const QVariant& v, PropertyFlags ps = PropertyFlags::NOSTYLE)
+         : element(e), id(i), property(v), flags(ps) {}
       P_ID getId() const  { return id; }
       UNDO_NAME("ChangeProperty")
       };
@@ -1243,7 +1163,7 @@ class Unlink : public LinkUnlink {
 class Link : public LinkUnlink {
 
    public:
-      Link(ScoreElement* e, ScoreElement* le) : LinkUnlink(e, le) {}
+      Link(ScoreElement* e, ScoreElement* le) : LinkUnlink(le, e) {}
       virtual void undo() override { doUnlink(); }
       virtual void redo() override { doLink();   }
       UNDO_NAME("Link")

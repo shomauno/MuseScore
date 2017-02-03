@@ -26,7 +26,6 @@ InstrumentName::InstrumentName(Score* s)
    : Text(s)
       {
       setInstrumentNameType(InstrumentNameType::SHORT);
-      _layoutPos = 0;
       }
 
 //---------------------------------------------------------
@@ -59,7 +58,7 @@ void InstrumentName::setInstrumentNameType(const QString& s)
 void InstrumentName::setInstrumentNameType(InstrumentNameType st)
       {
       _instrumentNameType = st;
-      setTextStyleType(st == InstrumentNameType::SHORT ? TextStyleType::INSTRUMENT_SHORT : TextStyleType::INSTRUMENT_LONG);
+      initSubStyle(st == InstrumentNameType::SHORT ? SubStyle::INSTRUMENT_SHORT : SubStyle::INSTRUMENT_LONG);
       }
 
 //---------------------------------------------------------
@@ -79,6 +78,52 @@ void InstrumentName::endEdit()
       else
             instrument->setShortName(s);
       score()->undo(new ChangePart(part, instrument, part->name()));
+      }
+
+//---------------------------------------------------------
+//   getProperty
+//---------------------------------------------------------
+
+QVariant InstrumentName::getProperty(P_ID id) const
+      {
+      switch (id) {
+            case P_ID::INAME_LAYOUT_POSITION:
+                  return _layoutPos;
+            default:
+                  return Text::getProperty(id);
+            }
+      }
+
+//---------------------------------------------------------
+//   setProperty
+//---------------------------------------------------------
+
+bool InstrumentName::setProperty(P_ID id, const QVariant& v)
+      {
+      switch (id) {
+            case P_ID::INAME_LAYOUT_POSITION:
+                  _layoutPos = v.toInt();
+printf("%p set layoutPos %d\n", this, _layoutPos);
+                  break;
+            default:
+                  return Text::setProperty(id, v);
+            }
+      score()->setLayoutAll();
+      return true;
+      }
+
+//---------------------------------------------------------
+//   propertyDefault
+//---------------------------------------------------------
+
+QVariant InstrumentName::propertyDefault(P_ID id) const
+      {
+      switch (id) {
+            case P_ID::INAME_LAYOUT_POSITION:
+                  return 0;
+            default:
+                  return Text::propertyDefault(id);
+            }
       }
 
 }

@@ -47,7 +47,7 @@ LayoutBreak::LayoutBreak(const LayoutBreak& lb)
 //   write
 //---------------------------------------------------------
 
-void LayoutBreak::write(Xml& xml) const
+void LayoutBreak::write(XmlWriter& xml) const
       {
       xml.stag(name());
       Element::writeProperties(xml);
@@ -71,7 +71,7 @@ void LayoutBreak::read(XmlReader& e)
       while (e.readNextStartElement()) {
             const QStringRef& tag(e.name());
             if (tag == "subtype")
-                  setProperty(P_ID::LAYOUT_BREAK, Ms::getProperty(P_ID::LAYOUT_BREAK, e));
+                  setLayoutBreakType(Type(Ms::getProperty(P_ID::LAYOUT_BREAK, e).toInt()));
             else if (tag == "pause")
                   _pause = e.readDouble();
             else if (tag == "startWithLongNames")
@@ -212,7 +212,7 @@ void LayoutBreak::spatiumChanged(qreal, qreal)
 
 bool LayoutBreak::acceptDrop(const DropData& data) const
       {
-      return data.element->type() == Element::Type::LAYOUT_BREAK
+      return data.element->type() == ElementType::LAYOUT_BREAK
          && static_cast<LayoutBreak*>(data.element)->layoutBreakType() != layoutBreakType();
       }
 

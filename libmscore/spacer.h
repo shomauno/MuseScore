@@ -15,8 +15,6 @@
 
 #include "element.h"
 
-class QPainter;
-
 namespace Ms {
 
 //---------------------------------------------------------
@@ -46,11 +44,11 @@ class Spacer : public Element {
       Spacer(Score*);
       Spacer(const Spacer&);
       virtual Spacer* clone() const    { return new Spacer(*this); }
-      virtual Element::Type type() const { return Element::Type::SPACER; }
+      virtual ElementType type() const { return ElementType::SPACER; }
       SpacerType spacerType() const    { return _spacerType; }
       void setSpacerType(SpacerType t) { _spacerType = t; }
 
-      virtual void write(Xml&) const;
+      virtual void write(XmlWriter&) const;
       virtual void read(XmlReader&);
       virtual void draw(QPainter*) const;
       virtual bool isEditable() const { return true; }

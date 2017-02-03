@@ -90,12 +90,12 @@ void InstrumentsDialog::on_saveButton_clicked()
             return;
             }
 
-      Xml xml(&f);
+      XmlWriter xml(0, &f);
       xml.header();
       xml.stag("museScore version=\"" MSC_VERSION "\"");
-      foreach(InstrumentGroup* g, instrumentGroups) {
+      for (InstrumentGroup* g : instrumentGroups) {
             xml.stag(QString("InstrumentGroup name=\"%1\" extended=\"%2\"").arg(g->name).arg(g->extended));
-            foreach(InstrumentTemplate* t, g->instrumentTemplates)
+            for (InstrumentTemplate* t : g->instrumentTemplates)
                   t->write(xml);
             xml.etag();
             }
@@ -200,10 +200,10 @@ void MuseScore::editInstrList()
 
       // keep the keylist of the first pitched staff to apply it to new ones
       KeyList tmpKeymap;
-      Staff* firstStaff = nullptr;
+      Staff* firstStaff = 0;
       for (Staff* s : masterScore->staves()) {
             KeyList* km = s->keyList();
-            if (!s->isDrumStaff()) {
+            if (!s->isDrumStaff(0)) {     // TODO
                   tmpKeymap.insert(km->begin(), km->end());
                   firstStaff = s;
                   break;
@@ -356,7 +356,7 @@ void MuseScore::editInstrList()
                               const StaffType* stfType = sli->staffType();
 
                               // use selected staff type
-                              if (stfType->name() != staff->staffType()->name())
+                              if (stfType->name() != staff->staffType(0)->name())
                                     masterScore->undo(new ChangeStaffType(staff, *stfType));
                               }
                         else {
@@ -476,7 +476,7 @@ void MuseScore::editInstrList()
       // there should be at least one measure
       //
       if (masterScore->measures()->size() == 0)
-            masterScore->insertMeasure(Element::Type::MEASURE, 0, false);
+            masterScore->insertMeasure(ElementType::MEASURE, 0, false);
 
       for (Excerpt* excerpt : masterScore->excerpts()) {
             QList<Staff*> sl       = excerpt->partScore()->staves();

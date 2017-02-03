@@ -44,13 +44,14 @@ class TestSpanners : public QObject, public MTest
       void spanners04();            // linking a staff to a staff containing a glissando
       void spanners05();            // creating part from an existing staff containing a glissando
       void spanners06();            // add a glissando to a staff with a linked staff
-      void spanners07();            // add a glissando to a satff with an excerpt attached
-      void spanners08();            // delete a lyrics with separator and undo
+      void spanners07();            // add a glissando to a staff with an excerpt attached
+//      void spanners08();            // delete a lyrics with separator and undo
       void spanners09();            // remove a measure containing the end point of a LyricsLine and undo
       void spanners10();            // remove a measure containing the start point of a LyricsLine and undo
       void spanners11();            // remove a measure entirely containing a LyricsLine and undo
       void spanners12();            // remove a measure containing the middle portion of a LyricsLine and undo
-      void spanners13();            // drop a line break at the middle of a LyricsLine and check LyricsLineSegments
+//      void spanners13();            // drop a line break at the middle of a LyricsLine and check LyricsLineSegments
+      void spanners14();            // creating part from an existing grand staff containing a cross staff glissando
       };
 
 //---------------------------------------------------------
@@ -83,7 +84,7 @@ void TestSpanners::spanners01()
       Segment*    seg   = msr->findSegment(Segment::Type::ChordRest, 0);
       QVERIFY(seg);
       Ms::Chord*      chord = static_cast<Ms::Chord*>(seg->element(0));
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       Note*       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -99,7 +100,7 @@ void TestSpanners::spanners01()
       seg   = msr->first();
       QVERIFY(seg);
       chord = static_cast<Ms::Chord*>(seg->element(0));   // voice 0 of staff 0
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -115,7 +116,7 @@ void TestSpanners::spanners01()
       seg   = msr->first();
       QVERIFY(seg);
       chord = static_cast<Ms::Chord*>(seg->element(4));   // voice 0 of staff 1
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -131,7 +132,7 @@ void TestSpanners::spanners01()
       seg   = msr->first();
       QVERIFY(seg);
       chord = static_cast<Ms::Chord*>(seg->element(0));   // voice 0 of staff 0
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -147,7 +148,7 @@ void TestSpanners::spanners01()
       seg   = msr->first();
       QVERIFY(seg);
       chord = static_cast<Ms::Chord*>(seg->element(0));   // voice 0 of staff 0
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -200,7 +201,7 @@ void TestSpanners::spanners03()
       Segment*    seg   = msr->findSegment(Segment::Type::ChordRest, 0);
       QVERIFY(seg);
       Ms::Chord*      chord = static_cast<Ms::Chord*>(seg->element(0));
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       Note*       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -212,7 +213,7 @@ void TestSpanners::spanners03()
       // GLISSANDO FROM AFTER-GRACE TO BEFORE-GRACE OF NEXT CHORD
       // go to last after-grace of chord and drop a glissando on it
       Ms::Chord*      grace = chord->graceNotesAfter().last();
-      QVERIFY(grace && grace->type() == Element::Type::CHORD);
+      QVERIFY(grace && grace->type() == ElementType::CHORD);
       note              = grace->upNote();
       QVERIFY(note);
       gliss             = new Glissando(score);
@@ -225,7 +226,7 @@ void TestSpanners::spanners03()
       seg               = seg->nextCR(0);
       QVERIFY(seg);
       chord             = static_cast<Ms::Chord*>(seg->element(0));
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       note              = chord->upNote();
       QVERIFY(note);
       gliss             = new Glissando(score);
@@ -238,10 +239,10 @@ void TestSpanners::spanners03()
       seg               = seg->nextCR(0);
       QVERIFY(seg);
       chord             = static_cast<Ms::Chord*>(seg->element(0));
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       // go to its last before-grace note
       grace             = chord->graceNotesBefore().last();
-      QVERIFY(grace && grace->type() == Element::Type::CHORD);
+      QVERIFY(grace && grace->type() == ElementType::CHORD);
       note              = grace->upNote();
       QVERIFY(note);
       gliss             = new Glissando(score);
@@ -269,7 +270,7 @@ void TestSpanners::spanners04()
       Staff* oldStaff   = score->staff(0);
       Staff* newStaff   = new Staff(score);
       newStaff->setPart(oldStaff->part());
-      newStaff->initFromStaffType(oldStaff->staffType());
+      newStaff->initFromStaffType(oldStaff->staffType(0));
       newStaff->setDefaultClefType(ClefTypeList(ClefType::G));
 
       KeySigEvent ke;
@@ -336,7 +337,7 @@ void TestSpanners::spanners06()
       Segment*    seg   = msr->findSegment(Segment::Type::ChordRest, 0);
       QVERIFY(seg);
       Ms::Chord*      chord = static_cast<Ms::Chord*>(seg->element(0));
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       Note*       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -369,7 +370,7 @@ void TestSpanners::spanners07()
       Segment*    seg   = msr->findSegment(Segment::Type::ChordRest, 0);
       QVERIFY(seg);
       Ms::Chord*      chord = static_cast<Ms::Chord*>(seg->element(0));
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       Note*       note  = chord->upNote();
       QVERIFY(note);
       // drop a glissando on note
@@ -381,7 +382,7 @@ void TestSpanners::spanners07()
       QVERIFY(saveCompareScore(score, "glissando-cloning04.mscx", DIR + "glissando-cloning04-ref.mscx"));
       delete score;
       }
-
+#if 0
 //---------------------------------------------------------
 ///  spanners08
 ///   Delete a lyrics with separator and undo
@@ -404,7 +405,7 @@ void TestSpanners::spanners08()
       Segment*    seg   = msr->findSegment(Segment::Type::ChordRest, 0);
       QVERIFY(seg);
       Ms::Chord*      chord = static_cast<Ms::Chord*>(seg->element(0));
-      QVERIFY(chord && chord->type() == Element::Type::CHORD);
+      QVERIFY(chord && chord->type() == ElementType::CHORD);
       QVERIFY(chord->lyrics().size() > 0);
       Lyrics*     lyr   = chord->lyrics(0, Element::Placement::BELOW);
       score->startCmd();
@@ -430,7 +431,7 @@ void TestSpanners::spanners08()
       QVERIFY(saveCompareScore(score, "lyricsline01.mscx", DIR + "lyricsline01.mscx"));
       delete score;
       }
-
+#endif
 //---------------------------------------------------------
 ///  spanners09
 ///   Remove a measure containing the end point of a LyricsLine and undo
@@ -562,7 +563,7 @@ void TestSpanners::spanners12()
       QVERIFY(saveCompareScore(score, "lyricsline05.mscx", DIR + "lyricsline05.mscx"));
       delete score;
       }
-
+#if 0
 //---------------------------------------------------------
 ///  spanners13
 ///   Drop a line break at a bar line inthe middle of a LyricsLine and check LyricsLineSegments are correct
@@ -599,6 +600,41 @@ void TestSpanners::spanners13()
       QVERIFY(saveCompareScore(score, "lyricsline06.mscx", DIR + "lyricsline06.mscx"));
       delete score;
       }
+#endif
+
+//---------------------------------------------------------
+///  spanners14
+///   creating part from an existing grand staff containing a cross staff glissando
+//---------------------------------------------------------
+
+void TestSpanners::spanners14()
+      {
+      MasterScore* score = readScore(DIR + "glissando-cloning05.mscx");
+      QVERIFY(score);
+      score->doLayout();
+
+      // create parts
+      // (copied and adapted from void TestParts::createParts() in mtest/libmscore/parts/tst_parts.cpp)
+      QList<Part*> parts;
+      parts.append(score->parts().at(0));
+      Score* nscore = new Score(score);
+
+      Excerpt* ex = new Excerpt(score);
+      ex->setPartScore(nscore);
+      ex->setTitle(parts.front()->longName());
+      ex->setParts(parts);
+      Excerpt::createExcerpt(ex);
+      QVERIFY(nscore);
+
+//      nscore->setName(parts.front()->partName());
+
+//      QMultiMap<int, int> tracks;
+      score->Score::undo(new AddExcerpt(ex));
+
+      QVERIFY(saveCompareScore(score, "glissando-cloning05.mscx", DIR + "glissando-cloning05-ref.mscx"));
+      delete score;
+      }
+
 
 
 QTEST_MAIN(TestSpanners)

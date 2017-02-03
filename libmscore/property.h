@@ -19,10 +19,10 @@ class XmlReader;
 enum class StyleIdx : int;
 
 //---------------------------------------------------------
-//   PropertyStyle
+//   PropertyFlags
 //---------------------------------------------------------
 
-enum class PropertyStyle : char {
+enum class PropertyFlags : char {
       NOSTYLE, UNSTYLED, STYLED
       };
 
@@ -30,7 +30,7 @@ enum class PropertyStyle : char {
 //   Element Properties
 //------------------------------------------------------------------------
 
-enum class P_ID : int {
+enum class P_ID {
       SUBTYPE,
       SELECTED,
       GENERATED,
@@ -41,8 +41,8 @@ enum class P_ID : int {
       SHOW_COURTESY,
       LINE_TYPE,
       PITCH,
-      TPC1,
 
+      TPC1,
       TPC2,
       LINE,
       FIXED,
@@ -52,8 +52,8 @@ enum class P_ID : int {
       VELO_TYPE,
       VELO_OFFSET,
       ARTICULATION_ANCHOR,
-      DIRECTION,
 
+      DIRECTION,
       STEM_DIRECTION,
       NO_STEM,
       SLUR_DIRECTION,
@@ -63,8 +63,8 @@ enum class P_ID : int {
       DOT_POSITION,
       TUNING,
       PAUSE,
-      BARLINE_TYPE,
 
+      BARLINE_TYPE,
       BARLINE_SPAN,
       BARLINE_SPAN_FROM,
       BARLINE_SPAN_TO,
@@ -74,8 +74,8 @@ enum class P_ID : int {
       GHOST,
       PLAY,
       TIMESIG_NOMINAL,
-      TIMESIG_ACTUAL,
 
+      TIMESIG_ACTUAL,
       NUMBER_TYPE,
       BRACKET_TYPE,
       NORMAL_NOTES,
@@ -85,9 +85,9 @@ enum class P_ID : int {
       GROW_LEFT,
       GROW_RIGHT,
       BOX_HEIGHT,
+
       BOX_WIDTH,
       TOP_GAP,
-
       BOTTOM_GAP,
       LEFT_MARGIN,
       RIGHT_MARGIN,
@@ -96,12 +96,10 @@ enum class P_ID : int {
       LAYOUT_BREAK,
       AUTOSCALE,
       SIZE,
+
       SCALE,
       LOCK_ASPECT_RATIO,
-
       SIZE_IS_SPATIUM,
-      TEXT_STYLE,
-      TEXT_STYLE_TYPE,
       TEXT,
       HTML_TEXT,
       USER_MODIFIED,
@@ -119,8 +117,8 @@ enum class P_ID : int {
       FBPREFIX,             // used for FiguredBassItem
       FBDIGIT,              //    "           "
       FBSUFFIX,             //    "           "
-
       FBCONTINUATIONLINE,   //    "           "
+
       FBPARENTHESIS1,       //    "           "
       FBPARENTHESIS2,       //    "           "
       FBPARENTHESIS3,       //    "           "
@@ -130,8 +128,8 @@ enum class P_ID : int {
       OTTAVA_TYPE,
       NUMBERS_ONLY,
       TRILL_TYPE,
-
       HAIRPIN_CIRCLEDTIP,
+
       HAIRPIN_TYPE,
       HAIRPIN_HEIGHT,
       HAIRPIN_CONT_HEIGHT,
@@ -141,21 +139,19 @@ enum class P_ID : int {
       VELOCITY,
       JUMP_TO,
       PLAY_UNTIL,
-
       CONTINUE_AT,
+
       LABEL,
       MARKER_TYPE,
       ARP_USER_LEN1,
       ARP_USER_LEN2,
-
       REPEAT_END,
       REPEAT_START,
       REPEAT_JUMP,
-
       MEASURE_NUMBER_MODE,
-
       GLISS_TYPE,
       GLISS_TEXT,
+
       GLISS_SHOW_TEXT,
       DIAGONAL,
       GROUPS,
@@ -164,9 +160,9 @@ enum class P_ID : int {
       LINE_WIDTH,
       LASSO_POS,
       LASSO_SIZE,
-
       TIME_STRETCH,
       ORNAMENT_STYLE,
+
       TIMESIG,
       TIMESIG_GLOBAL,
       TIMESIG_STRETCH,
@@ -209,40 +205,78 @@ enum class P_ID : int {
       LYRIC_TICKS,
       VOLTA_ENDING,
       LINE_VISIBLE,
-
       MAG,
+
       USE_DRUMSET,
       PART_VOLUME,
       PART_MUTE,
       PART_PAN,
       PART_REVERB,
       PART_CHORUS,
-
       DURATION,
       DURATION_TYPE,
       ROLE,
       TRACK,
 
       GLISSANDO_STYLE,
-
       FRET_STRINGS,
       FRET_FRETS,
       FRET_BARRE,
       FRET_OFFSET,
-
       SYSTEM_BRACKET,
       GAP,
       AUTOPLACE,
       DASH_LINE_LEN,
       DASH_GAP_LEN,
+
       TICK,
       PLAYBACK_VOICE1,
       PLAYBACK_VOICE2,
       PLAYBACK_VOICE3,
       PLAYBACK_VOICE4,
       SYMBOL,
-
       PLAY_REPEATS,
+      CREATE_SYSTEM_HEADER,
+      STAFF_LINES,
+      LINE_DISTANCE,
+
+      STEP_OFFSET,
+      STAFF_SHOW_BARLINES,
+      STAFF_SHOW_LEDGERLINES,
+      STAFF_SLASH_STYLE,
+      STAFF_NOTEHEAD_SCHEME,
+      STAFF_GEN_CLEF,
+      STAFF_GEN_TIMESIG,
+      STAFF_GEN_KEYSIG,
+      STAFF_YOFFSET,
+      STAFF_USERDIST,
+
+      STAFF_BARLINE_SPAN,
+      STAFF_BARLINE_SPAN_FROM,
+      STAFF_BARLINE_SPAN_TO,
+      BRACKET_COLUMN,
+      INAME_LAYOUT_POSITION,
+      SUB_STYLE,
+      FONT_FACE,
+      FONT_SIZE,
+      FONT_BOLD,
+      FONT_ITALIC,
+
+      FONT_UNDERLINE,
+      FRAME,
+      FRAME_SQUARE,
+      FRAME_CIRCLE,
+      FRAME_WIDTH,
+      FRAME_PADDING,
+      FRAME_ROUND,
+      FRAME_FG_COLOR,
+      FRAME_BG_COLOR,
+      FONT_SPATIUM_DEPENDENT,
+
+/*120*/      ALIGN,
+      OFFSET,
+      OFFSET_TYPE,
+      SYSTEM_FLAG,
 
       END
       };
@@ -253,7 +287,7 @@ enum class P_TYPE : char {
       INT,
       REAL,
       SPATIUM,
-      SP_REAL,
+      SP_REAL,          // real value saved in (score) spatium units
       FRACTION,
       POINT,
       POINT_MM,
@@ -277,12 +311,18 @@ enum class P_TYPE : char {
       INT_LIST,
       GLISSANDO_STYLE,
       BARLINE_TYPE,
+      HEAD_TYPE,         // enum class Notehead::Type
+      HEAD_GROUP,       // enum class Notehead::Group
       ZERO_INT,         // displayed with offset +1
+      FONT,
+      SUB_STYLE,
+      ALIGN,
       };
 
 extern QVariant getProperty(P_ID type, XmlReader& e);
 extern P_TYPE propertyType(P_ID);
 extern const char* propertyName(P_ID);
+extern const char* propertyQmlName(P_ID);
 extern bool propertyLink(P_ID id);
 
 }     // namespace Ms

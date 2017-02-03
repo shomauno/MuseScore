@@ -38,8 +38,10 @@ void TextLineSegment::layout()
 
       TextLineBaseSegment::layout();
       if (parent()) {
-            if (textLine()->placeBelow())
-                  rypos() = staff()->height() + score()->styleP(StyleIdx::textLinePosBelow) * mag();
+            if (textLine()->placeBelow()) {
+                  qreal sh = staff() ? staff()->height() : 0.0;
+                  rypos() = sh + score()->styleP(StyleIdx::textLinePosBelow) * mag();
+                  }
             else
                   rypos() = score()->styleP(StyleIdx::textLinePosAbove) * mag();
             if (autoplace()) {
@@ -107,14 +109,14 @@ QVariant TextLineSegment::propertyDefault(P_ID id) const
 //   propertyStyle
 //---------------------------------------------------------
 
-PropertyStyle TextLineSegment::propertyStyle(P_ID id) const
+PropertyFlags TextLineSegment::propertyFlags(P_ID id) const
       {
       switch (id) {
             case P_ID::PLACEMENT:
-                  return textLine()->propertyStyle(id);
+                  return textLine()->propertyFlags(id);
 
             default:
-                  return TextLineBaseSegment::propertyStyle(id);
+                  return TextLineBaseSegment::propertyFlags(id);
             }
       }
 

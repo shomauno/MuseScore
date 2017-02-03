@@ -15,8 +15,6 @@
 
 #include "element.h"
 
-class QPainter;
-
 namespace Ms {
 
 enum class SymId;
@@ -44,7 +42,7 @@ class Breath : public Element {
 
    public:
       Breath(Score* s);
-      virtual Element::Type type() const override { return Element::Type::BREATH; }
+      virtual ElementType type() const override { return ElementType::BREATH; }
       virtual Breath* clone() const override      { return new Breath(*this); }
 
       void setSymId(SymId id)          { _symId = id; }
@@ -56,7 +54,7 @@ class Breath : public Element {
 
       virtual void draw(QPainter*) const override;
       virtual void layout() override;
-      virtual void write(Xml&) const override;
+      virtual void write(XmlWriter&) const override;
       virtual void read(XmlReader&) override;
       virtual QPointF pagePos() const override;      ///< position in page coordinates
 

@@ -55,7 +55,7 @@ PaletteBox::PaletteBox(QWidget* parent)
 
       searchBox = new QLineEdit(this);
       searchBox->setClearButtonEnabled(true);
-      searchBox->setPlaceholderText(tr("Filter"));
+      searchBox->setPlaceholderText(tr("Search"));
       connect(searchBox, SIGNAL(textChanged(const QString&)), this, SLOT(filterPalettes(const QString&)));
       QHBoxLayout* hlSearch = new QHBoxLayout;
       hlSearch->setContentsMargins(5,0,5,0);
@@ -348,7 +348,7 @@ void PaletteBox::closeAll()
 //   write
 //---------------------------------------------------------
 
-void PaletteBox::write(Xml& xml)
+void PaletteBox::write(XmlWriter& xml)
       {
       xml.stag("PaletteBox");
       for (int i = 0; i < (vbox->count() - 1); i += 2) {

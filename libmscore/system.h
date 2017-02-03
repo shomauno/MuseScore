@@ -82,26 +82,26 @@ class System : public Element {
       QList<Bracket*> _brackets;
       QList<SpannerSegment*> _spannerSegments;
 
-      qreal _leftMargin      { 0.0    };     ///< left margin for instrument name, brackets etc.
-      mutable bool fixedDownDistance { false };
+      qreal _leftMargin              { 0.0    };     ///< left margin for instrument name, brackets etc.
+      mutable bool fixedDownDistance { false  };
 
    public:
       System(Score*);
       ~System();
       virtual System* clone() const override      { return new System(*this); }
-      virtual Element::Type type() const override { return Element::Type::SYSTEM; }
+      virtual ElementType type() const override { return ElementType::SYSTEM; }
 
       virtual void add(Element*) override;
       virtual void remove(Element*) override;
       virtual void change(Element* o, Element* n) override;
-      virtual void write(Xml&) const override;
+      virtual void write(XmlWriter&) const override;
       virtual void read(XmlReader&) override;
 
       virtual void scanElements(void* data, void (*func)(void*, Element*), bool all=true) override;
 
       Page* page() const                    { return (Page*)parent(); }
 
-      void layoutSystem(qreal xoffset);
+      void layoutSystem(qreal);
 
       void layout2();                     ///< Called after Measure layout.
       void clear();                       ///< Clear measure list.
@@ -153,7 +153,6 @@ class System : public Element {
       qreal bottomDistance(int staffIdx, const Shape&) const;
       qreal minTop() const;
       qreal minBottom() const;
-      void removeGeneratedElements();
 
       void moveBracket(int staffIdx, int srcCol, int dstCol);
       bool hasFixedDownDistance() const { return fixedDownDistance; }

@@ -24,17 +24,19 @@ extern QString localeName;
 ResourceManager::ResourceManager(QWidget *parent) :
       QDialog(parent)
       {
+      setObjectName("ResourceManager");
       setupUi(this);
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
       QDir dir;
       dir.mkpath(dataPath + "/locale");
-      baseAddr = "http://extensions.musescore.org/2.0.2/";
+      baseAddr = "http://extensions.musescore.org/2.1/";
       displayPlugins();
       displayLanguages();
       languagesTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
       languagesTable->verticalHeader()->hide();
       tabs->removeTab(tabs->indexOf(plugins));
       tabs->setCurrentIndex(tabs->indexOf(languages));
+      MuseScore::restoreGeometry(this);
       }
 
 void ResourceManager::displayPlugins()
@@ -208,4 +210,16 @@ bool ResourceManager::verifyFile(QString path, QString hash)
             }
       return false;
       }
+
+//---------------------------------------------------------
+//   hideEvent
+//---------------------------------------------------------
+
+void ResourceManager::hideEvent(QHideEvent* event)
+      {
+      MuseScore::saveGeometry(this);
+      QWidget::hideEvent(event);
+      }
+
 }
+

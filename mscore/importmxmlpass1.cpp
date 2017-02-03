@@ -26,6 +26,7 @@
 #include "libmscore/sym.h"
 #include "libmscore/symbol.h"
 #include "libmscore/timesig.h"
+#include "libmscore/style.h"
 
 #include "importmxmlpass1.h"
 #include "importmxmlpass2.h"
@@ -598,14 +599,13 @@ static void determineMeasureStart(const QVector<Fraction>& ml, QVector<Fraction>
 //---------------------------------------------------------
 
 /**
- Add text \a strTxt to VBox \a vbx using TextStyleType \a stl.
+ Add text \a strTxt to VBox \a vbx using SubStyle \a stl.
  */
 
-static void addText(VBox* vbx, Score* s, QString strTxt, TextStyleType stl)
+static void addText(VBox* vbx, Score* s, QString strTxt, SubStyle stl)
       {
       if (!strTxt.isEmpty()) {
-            Text* text = new Text(s);
-            text->setTextStyleType(stl);
+            Text* text = new Text(stl, s);
             text->setXmlText(strTxt);
             vbx->add(text);
             }
@@ -616,18 +616,17 @@ static void addText(VBox* vbx, Score* s, QString strTxt, TextStyleType stl)
 //---------------------------------------------------------
 
 /**
- Add text \a strTxt to VBox \a vbx using TextStyleType \a stl.
+ Add text \a strTxt to VBox \a vbx using SubStyle \a stl.
  Also sets Align and Yoff.
  */
 
-static void addText2(VBox* vbx, Score* s, QString strTxt, TextStyleType stl, Align v, double yoffs)
+static void addText2(VBox* vbx, Score* s, QString strTxt, SubStyle stl, Align v, double yoffs)
       {
       if (!strTxt.isEmpty()) {
-            Text* text = new Text(s);
-            text->setTextStyleType(stl);
+            Text* text = new Text(stl, s);
             text->setXmlText(strTxt);
-            text->textStyle().setAlign(v);
-            text->textStyle().setYoff(yoffs);
+            text->setAlign(v);
+            text->setOffset(QPointF(0.0, yoffs));
             vbx->add(text);
             }
       }
@@ -644,14 +643,13 @@ static void addText2(VBox* vbx, Score* s, QString strTxt, TextStyleType stl, Ali
 
 static void doCredits(Score* score, const CreditWordsList& credits, const int pageWidth, const int pageHeight)
       {
-      const PageFormat* pf = score->pageFormat();
       /*
       qDebug("MusicXml::doCredits()");
       qDebug("page format set (inch) w=%g h=%g tm=%g spatium=%g DPMM=%g DPI=%g",
              pf->width(), pf->height(), pf->oddTopMargin(), score->spatium(), DPMM, DPI);
       */
       // page width, height and odd top margin in tenths
-      const double ph  = pf->height() * 10 * DPI / score->spatium();
+      const double ph  = score->styleD(StyleIdx::pageHeight) * 10 * DPI / score->spatium();
       const int pw1 = pageWidth / 3;
       const int pw2 = pageWidth * 2 / 3;
       const int ph2 = pageHeight / 2;
@@ -737,14 +735,14 @@ static void doCredits(Score* score, const CreditWordsList& credits, const int pa
                   if (pw2 < defx) {
                         // found composer
                         addText2(vbox, score, w->words,
-                                 TextStyleType::COMPOSER, AlignmentFlags::RIGHT | AlignmentFlags::BOTTOM,
+                                 SubStyle::COMPOSER, Align::RIGHT | Align::BOTTOM,
                                  (miny - w->defaultY) * score->spatium() / (10 * DPI));
                         }
                   // poet is in the left column
                   else if (defx < pw1) {
                         // found poet
                         addText2(vbox, score, w->words,
-                                 TextStyleType::POET, AlignmentFlags::LEFT | AlignmentFlags::BOTTOM,
+                                 SubStyle::POET, Align::LEFT | Align::BOTTOM,
                                  (miny - w->defaultY) * score->spatium() / (10 * DPI));
                         }
                   // save others (in the middle column) to be handled later
@@ -787,7 +785,7 @@ static void doCredits(Score* score, const CreditWordsList& credits, const int pa
             CreditWords* w = creditMap.value(keys.at(keys.size() - 1));
             //qDebug("title='%s'", qPrintable(w->words));
             addText2(vbox, score, w->words,
-                     TextStyleType::TITLE, AlignmentFlags::HCENTER | AlignmentFlags::TOP,
+                     SubStyle::TITLE, Align::HCENTER | Align::TOP,
                      (maxy - w->defaultY) * score->spatium() / (10 * DPI));
             }
 
@@ -796,7 +794,7 @@ static void doCredits(Score* score, const CreditWordsList& credits, const int pa
             CreditWords* w = creditMap.value(keys.at(i));
             //qDebug("subtitle='%s'", qPrintable(w->words));
             addText2(vbox, score, w->words,
-                     TextStyleType::SUBTITLE, AlignmentFlags::HCENTER | AlignmentFlags::TOP,
+                     SubStyle::SUBTITLE, Align::HCENTER | Align::TOP,
                      (maxy - w->defaultY) * score->spatium() / (10 * DPI));
             }
 
@@ -826,11 +824,11 @@ static void doCredits(Score* score, const CreditWordsList& credits, const int pa
             if (!metaPoet.isEmpty()) strPoet = metaPoet;
             if (!metaTranslator.isEmpty()) strTranslator = metaTranslator;
 
-            addText(vbox, score, strTitle.toHtmlEscaped(),      TextStyleType::TITLE);
-            addText(vbox, score, strSubTitle.toHtmlEscaped(),   TextStyleType::SUBTITLE);
-            addText(vbox, score, strComposer.toHtmlEscaped(),   TextStyleType::COMPOSER);
-            addText(vbox, score, strPoet.toHtmlEscaped(),       TextStyleType::POET);
-            addText(vbox, score, strTranslator.toHtmlEscaped(), TextStyleType::TRANSLATOR);
+            addText(vbox, score, strTitle.toHtmlEscaped(),      SubStyle::TITLE);
+            addText(vbox, score, strSubTitle.toHtmlEscaped(),   SubStyle::SUBTITLE);
+            addText(vbox, score, strComposer.toHtmlEscaped(),   SubStyle::COMPOSER);
+            addText(vbox, score, strPoet.toHtmlEscaped(),       SubStyle::POET);
+            addText(vbox, score, strTranslator.toHtmlEscaped(), SubStyle::TRANSLATOR);
             }
 
       if (vbox) {
@@ -908,7 +906,7 @@ Score::FileError MusicXMLParserPass1::parse()
 static bool allStaffGroupsIdentical(Part const* const p)
       {
       for (int i = 1; i < p->nstaves(); ++i) {
-            if (p->staff(0)->staffGroup() != p->staff(i)->staffGroup())
+            if (p->staff(0)->staffType(0)->group() != p->staff(i)->staffType(0)->group())
                   return false;
             }
       return true;
@@ -1283,28 +1281,29 @@ void MusicXMLParserPass1::credit(CreditWordsList& credits)
 // the word-font setting applies. Setting all sizes to the size specified
 // gives bad results, e.g. for measure numbers, so a selection is made.
 // Some tweaking may still be required.
-
+#if 0
 static bool mustSetSize(const int i)
       {
       return
-            i == int(TextStyleType::TITLE)
-            || i == int(TextStyleType::SUBTITLE)
-            || i == int(TextStyleType::COMPOSER)
-            || i == int(TextStyleType::POET)
-            || i == int(TextStyleType::INSTRUMENT_LONG)
-            || i == int(TextStyleType::INSTRUMENT_SHORT)
-            || i == int(TextStyleType::INSTRUMENT_EXCERPT)
-            || i == int(TextStyleType::TEMPO)
-            || i == int(TextStyleType::METRONOME)
-            || i == int(TextStyleType::TRANSLATOR)
-            || i == int(TextStyleType::SYSTEM)
-            || i == int(TextStyleType::STAFF)
-            || i == int(TextStyleType::REPEAT_LEFT)
-            || i == int(TextStyleType::REPEAT_RIGHT)
-            || i == int(TextStyleType::TEXTLINE)
-            || i == int(TextStyleType::GLISSANDO)
-            || i == int(TextStyleType::INSTRUMENT_CHANGE);
+            i == int(SubStyle::TITLE)
+            || i == int(SubStyle::SUBTITLE)
+            || i == int(SubStyle::COMPOSER)
+            || i == int(SubStyle::POET)
+            || i == int(SubStyle::INSTRUMENT_LONG)
+            || i == int(SubStyle::INSTRUMENT_SHORT)
+            || i == int(SubStyle::INSTRUMENT_EXCERPT)
+            || i == int(SubStyle::TEMPO)
+            || i == int(SubStyle::METRONOME)
+            || i == int(SubStyle::TRANSLATOR)
+            || i == int(SubStyle::SYSTEM)
+            || i == int(SubStyle::STAFF)
+            || i == int(SubStyle::REPEAT_LEFT)
+            || i == int(SubStyle::REPEAT_RIGHT)
+            || i == int(SubStyle::TEXTLINE)
+            || i == int(SubStyle::GLISSANDO)
+            || i == int(SubStyle::INSTRUMENT_CHANGE);
       }
+#endif
 
 //---------------------------------------------------------
 //   updateStyles
@@ -1318,22 +1317,36 @@ static void updateStyles(Score* score,
                          const QString& wordFamily, const QString& wordSize,
                          const QString& lyricFamily, const QString& lyricSize)
       {
-      const float fWordSize = wordSize.toFloat();   // note conversion error results in value 0.0
+//TODO:ws       const float fWordSize = wordSize.toFloat();   // note conversion error results in value 0.0
       const float fLyricSize = lyricSize.toFloat(); // but avoid comparing float with exact value later
 
       // loop over all text styles (except the empty, always hidden, first one)
       // set all text styles to the MusicXML defaults
-      for (int i = int(TextStyleType::DEFAULT) + 1; i < int(TextStyleType::TEXT_STYLES); ++i) {
-            TextStyle ts = score->style()->textStyle(TextStyleType(i));
-            if (i == int(TextStyleType::LYRIC1) || i == int(TextStyleType::LYRIC2)) {
-                  if (lyricFamily != "") ts.setFamily(lyricFamily);
-                  if (fLyricSize > 0.001) ts.setSize(fLyricSize);
+#if 0 // TODO:ws
+      for (int i = int(SubStyle::DEFAULT) + 1; i < int(SubStyle::TEXT_STYLES); ++i) {
+            TextStyle ts = score->style().textStyle(TextStyleType(i));
+            if (i == int(SubStyle::LYRIC1) || i == int(SubStyle::LYRIC2)) {
+                  if (lyricFamily != "")
+                        ts.setFamily(lyricFamily);
+                  if (fLyricSize > 0.001)
+                        ts.setSize(fLyricSize);
                   }
             else {
-                  if (wordFamily != "") ts.setFamily(wordFamily);
-                  if (fWordSize > 0.001 && mustSetSize(i)) ts.setSize(fWordSize);
+                  if (wordFamily != "")
+                        ts.setFamily(wordFamily);
+                  if (fWordSize > 0.001 && mustSetSize(i))
+                        ts.setSize(fWordSize);
                   }
-            score->style()->setTextStyle(ts);
+            score->style().setTextStyle(ts);
+            }
+#endif
+      if (lyricFamily != "") {
+            score->style().set(StyleIdx::lyricsOddFontFace, lyricFamily);
+            score->style().set(StyleIdx::lyricsEvenFontFace, lyricFamily);
+            }
+      if (fLyricSize > 0.001) {
+            score->style().set(StyleIdx::lyricsOddFontSize, fLyricSize);
+            score->style().set(StyleIdx::lyricsEvenFontSize, fLyricSize);
             }
       }
 
@@ -1375,8 +1388,8 @@ void MusicXMLParserPass1::defaults(int& pageWidth, int& pageHeight)
             else if (_e.name() == "page-layout") {
                   PageFormat pf;
                   pageLayout(pf, millimeter / (tenths * INCH), pageWidth, pageHeight);
-                  if (preferences.musicxmlImportLayout)
-                        _score->setPageFormat(pf);
+//TODO:ws                  if (preferences.musicxmlImportLayout)
+//                        _score->setPageFormat(pf);
                   }
             else if (_e.name() == "system-layout") {
                   while (_e.readNextStartElement()) {
@@ -1385,7 +1398,7 @@ void MusicXMLParserPass1::defaults(int& pageWidth, int& pageHeight)
                         else if (_e.name() == "system-distance") {
                               Spatium val(_e.readElementText().toDouble() / 10.0);
                               if (preferences.musicxmlImportLayout) {
-                                    _score->style()->set(StyleIdx::minSystemDistance, val);
+                                    _score->style().set(StyleIdx::minSystemDistance, val);
                                     qDebug("system distance %f", val.val());
                                     }
                               }
@@ -1400,7 +1413,7 @@ void MusicXMLParserPass1::defaults(int& pageWidth, int& pageHeight)
                         if (_e.name() == "staff-distance") {
                               Spatium val(_e.readElementText().toDouble() / 10.0);
                               if (preferences.musicxmlImportLayout)
-                                    _score->style()->set(StyleIdx::staffDistance, val);
+                                    _score->style().set(StyleIdx::staffDistance, val);
                               }
                         else
                               skipLogCurrElem();
@@ -1473,18 +1486,18 @@ void MusicXMLParserPass1::pageLayout(PageFormat& pf, const qreal conversion,
                         else
                               skipLogCurrElem();
                         }
-                  pf.setTwosided(type == "odd" || type == "even");
+                  pf.twosided = type == "odd" || type == "even";
                   if (type == "odd" || type == "both") {
-                        pf.setOddLeftMargin(lm);
+                        pf.oddLeftMargin = lm;
                         _oddRightMargin = rm;
-                        pf.setOddTopMargin(tm);
-                        pf.setOddBottomMargin(bm);
+                        pf.oddTopMargin = tm;
+                        pf.oddBottomMargin = bm;
                         }
                   if (type == "even" || type == "both") {
-                        pf.setEvenLeftMargin(lm);
+                        pf.evenLeftMargin = lm;
                         _evenRightMargin = rm;
-                        pf.setEvenTopMargin(tm);
-                        pf.setEvenBottomMargin(bm);
+                        pf.evenTopMargin = tm;
+                        pf.evenBottomMargin = bm;
                         }
                   }
             else if (_e.name() == "page-height") {
@@ -1502,10 +1515,10 @@ void MusicXMLParserPass1::pageLayout(PageFormat& pf, const qreal conversion,
             else
                   skipLogCurrElem();
             }
-      pf.setSize(size);
-      qreal w1 = size.width() - pf.oddLeftMargin() - _oddRightMargin;
-      qreal w2 = size.width() - pf.evenLeftMargin() - _evenRightMargin;
-      pf.setPrintableWidth(qMax(w1, w2));   // silently adjust right margins
+      pf.size = size;
+      qreal w1 = size.width() - pf.oddLeftMargin - _oddRightMargin;
+      qreal w2 = size.width() - pf.evenLeftMargin - _evenRightMargin;
+      pf.printableWidth = qMax(w1, w2);   // silently adjust right margins
       }
 
 //---------------------------------------------------------
@@ -2142,7 +2155,7 @@ void MusicXMLParserPass1::clef(const QString& partId)
       // TODO: changed for #55501, but now staff type init is shared between pass 1 and 2
       // old code: if (0 <= n && n < staves && staffType != StaffTypes::STANDARD)
       if (0 <= n && n < staves && staffType == StaffTypes::TAB_DEFAULT)
-            _score->staff(staffIdx + n)->setStaffType(StaffType::preset(staffType));
+            _score->staff(staffIdx + n)->setStaffType(0, StaffType::preset(staffType));
       }
 
 //---------------------------------------------------------
@@ -2263,8 +2276,8 @@ void MusicXMLParserPass1::divisions()
 
 static void setStaffLines(Score* score, int staffIdx, int stafflines)
       {
-      score->staff(staffIdx)->setLines(stafflines);
-      score->staff(staffIdx)->setBarLineTo((stafflines - 1) * 2);
+      score->staff(staffIdx)->setLines(0, stafflines);
+      score->staff(staffIdx)->setBarLineTo(0);  // default
       }
 
 //---------------------------------------------------------
@@ -2298,7 +2311,7 @@ void MusicXMLParserPass1::staffDetails(const QString& partId)
       int staffIdx = _score->staffIdx(part) + n;
 
       StringData* t = 0;
-      if (_score->staff(staffIdx)->isTabStaff()) {
+      if (_score->staff(staffIdx)->isTabStaff(0)) {
             t = new StringData;
             t->setFrets(25);       // sensible default
             }

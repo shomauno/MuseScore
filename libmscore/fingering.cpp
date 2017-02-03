@@ -15,6 +15,10 @@
 #include "staff.h"
 #include "undo.h"
 #include "xml.h"
+#include "chord.h"
+#include "part.h"
+#include "measure.h"
+#include "stem.h"
 
 namespace Ms {
 
@@ -23,17 +27,16 @@ namespace Ms {
 //---------------------------------------------------------
 
 Fingering::Fingering(Score* s)
-  : Text(s)
+  : Text(SubStyle::FINGERING, s)
       {
-      setTextStyleType(TextStyleType::FINGERING);
-      setFlag(ElementFlag::HAS_TAG, true);
+      setFlag(ElementFlag::HAS_TAG, true);      // this is a layered element
       }
 
 //---------------------------------------------------------
 //   write
 //---------------------------------------------------------
 
-void Fingering::write(Xml& xml) const
+void Fingering::write(XmlWriter& xml) const
       {
       if (!xml.canWrite(this))
             return;
@@ -60,10 +63,59 @@ void Fingering::read(XmlReader& e)
 
 void Fingering::layout()
       {
-      if (staff() && staff()->isTabStaff())     // in TAB staves
-            setbbox(QRectF());                  // fingerings have no area
-      else
-            Text::layout();
+      Text::layout();
+
+      if (autoplace() && note()) {
+            Chord* chord = note()->chord();
+            Staff* staff = chord->staff();
+            Part* part   = staff->part();
+            int n        = part->nstaves();
+            bool voices  = chord->measure()->hasVoices(staff->idx());
+            bool below   = voices ? !chord->up() : (n > 1) && (staff->rstaff() == n-1);
+            bool tight   = voices && !chord->beam();
+
+            qreal x = 0.0;
+            qreal y = 0.0;
+            qreal headWidth = note()->headWidth();
+            qreal headHeight = note()->headHeight();
+            qreal fh = headHeight;        // TODO: fingering number height
+
+            if (chord->notes().size() == 1) {
+                  x = headWidth * .5;
+                  if (below) {
+                        // place fingering below note
+                        y = fh + spatium() * .4;
+                        if (tight) {
+                              y += 0.5 * spatium();
+                              if (chord->stem())
+                                    x += 0.5 * spatium();
+                              }
+                        else if (chord->stem() && !chord->up()) {
+                              // on stem side
+                              y += chord->stem()->height();
+                              x -= spatium() * .4;
+                              }
+                        }
+                  else {
+                        // place fingering above note
+                        y = -headHeight - spatium() * .4;
+                        if (tight) {
+                              y -= 0.5 * spatium();
+                              if (chord->stem())
+                                    x -= 0.5 * spatium();
+                              }
+                        else if (chord->stem() && chord->up()) {
+                              // on stem side
+                              y -= chord->stem()->height();
+                              x += spatium() * .4;
+                              }
+                        }
+                  }
+            else {
+                  x -= spatium();
+                  }
+            setUserOff(QPointF(x, y));
+            }
       }
 
 //---------------------------------------------------------
@@ -72,25 +124,7 @@ void Fingering::layout()
 
 void Fingering::draw(QPainter* painter) const
       {
-      if (staff() && staff()->isTabStaff())     // hide fingering in TAB staves
-            return;
       Text::draw(painter);
-      }
-
-//---------------------------------------------------------
-//   reset
-//---------------------------------------------------------
-
-void Fingering::reset()
-      {
-      QPointF o(userOff());
-      score()->layoutFingering(this);
-      QPointF no;
-      TextStyleType tst = textStyleType();
-      if (tst == TextStyleType::FINGERING || tst == TextStyleType::RH_GUITAR_FINGERING || tst == TextStyleType::STRING_NUMBER)
-            no = userOff();
-      setUserOff(o);
-      score()->undoChangeProperty(this, P_ID::USER_OFF, no);
       }
 
 //---------------------------------------------------------
@@ -100,10 +134,115 @@ void Fingering::reset()
 QString Fingering::accessibleInfo() const
       {
       QString rez = Element::accessibleInfo();
-      if (textStyleType() == TextStyleType::STRING_NUMBER) {
+      if (subStyle() == SubStyle::STRING_NUMBER) {
             rez += " " + tr("String number");
             }
       return QString("%1: %2").arg(rez).arg(plainText());
+      }
+
+//---------------------------------------------------------
+//   getProperty
+//---------------------------------------------------------
+
+QVariant Fingering::getProperty(P_ID propertyId) const
+      {
+      switch (propertyId) {
+            default:
+                  return Text::getProperty(propertyId);
+            }
+      }
+
+//---------------------------------------------------------
+//   setProperty
+//---------------------------------------------------------
+
+bool Fingering::setProperty(P_ID propertyId, const QVariant& v)
+      {
+      switch (propertyId) {
+            default:
+                  return Text::setProperty(propertyId, v);
+            }
+      triggerLayout();
+      return true;
+      }
+
+//---------------------------------------------------------
+//   propertyDefault
+//---------------------------------------------------------
+
+QVariant Fingering::propertyDefault(P_ID id) const
+      {
+      switch (id) {
+            case P_ID::SUB_STYLE:
+                  return int(SubStyle::FINGERING);
+            default:
+                  return Text::propertyDefault(id);
+            }
+      }
+
+//---------------------------------------------------------
+//   propertyStyle
+//---------------------------------------------------------
+
+PropertyFlags Fingering::propertyFlags(P_ID id) const
+      {
+      switch (id) {
+            default:
+                  return Text::propertyFlags(id);
+            }
+      }
+
+//---------------------------------------------------------
+//   resetProperty
+//---------------------------------------------------------
+
+void Fingering::resetProperty(P_ID id)
+      {
+      switch (id) {
+            default:
+                  return Text::resetProperty(id);
+            }
+      }
+
+//---------------------------------------------------------
+//   getPropertyStyle
+//---------------------------------------------------------
+
+StyleIdx Fingering::getPropertyStyle(P_ID id) const
+      {
+      switch (id) {
+            default:
+                  return Text::getPropertyStyle(id);
+            }
+      return StyleIdx::NOSTYLE;
+      }
+
+//---------------------------------------------------------
+//   styleChanged
+//    reset all styled values to actual style
+//---------------------------------------------------------
+
+void Fingering::styleChanged()
+      {
+      Text::styleChanged();
+      }
+
+//---------------------------------------------------------
+//   reset
+//---------------------------------------------------------
+
+void Fingering::reset()
+      {
+      Text::reset();
+      }
+
+//---------------------------------------------------------
+//   subtypeName
+//---------------------------------------------------------
+
+QString Fingering::subtypeName() const
+      {
+      return subStyleName(subStyle());
       }
 
 }

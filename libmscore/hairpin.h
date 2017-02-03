@@ -19,8 +19,6 @@
 #include "textlinebase.h"
 #include "mscore.h"
 
-class QPainter;
-
 namespace Ms {
 
 class Score;
@@ -43,7 +41,7 @@ class HairpinSegment : public TextLineBaseSegment {
       HairpinSegment(Score* s) : TextLineBaseSegment(s) {}
       Hairpin* hairpin() const                       { return (Hairpin*)spanner(); }
       virtual HairpinSegment* clone() const override { return new HairpinSegment(*this); }
-      virtual Element::Type type() const override    { return Element::Type::HAIRPIN_SEGMENT; }
+      virtual ElementType type() const override    { return ElementType::HAIRPIN_SEGMENT; }
       virtual void draw(QPainter*) const override;
       virtual void updateGrips(Grip*, QVector<QRectF>&) const override;
       virtual int grips() const override { return 4; }
@@ -52,7 +50,7 @@ class HairpinSegment : public TextLineBaseSegment {
       virtual QVariant getProperty(P_ID) const override;
       virtual bool setProperty(P_ID, const QVariant&) override;
       virtual QVariant propertyDefault(P_ID) const override;
-      virtual PropertyStyle propertyStyle(P_ID) const override;
+      virtual PropertyFlags propertyFlags(P_ID) const override;
       virtual StyleIdx getPropertyStyle(P_ID) const override;
       virtual void resetProperty(P_ID id) override;
       virtual Shape shape() const override;
@@ -79,12 +77,12 @@ class Hairpin : public TextLineBase {
       HairpinType _hairpinType;
       int _veloChange;
       Dynamic::Range _dynRange;
-      PropertyStyle lineWidthStyle;
+      PropertyFlags lineWidthStyle;
 
       Spatium _hairpinHeight;
       Spatium _hairpinContHeight;
-      PropertyStyle hairpinHeightStyle;
-      PropertyStyle hairpinContHeightStyle;
+      PropertyFlags hairpinHeightStyle;
+      PropertyFlags hairpinContHeightStyle;
 
       static Spatium editHairpinHeight;
       virtual void startEdit(MuseScoreView*, const QPointF&) override;
@@ -93,7 +91,7 @@ class Hairpin : public TextLineBase {
    public:
       Hairpin(Score* s);
       virtual Hairpin* clone() const override     { return new Hairpin(*this); }
-      virtual Element::Type type() const override { return Element::Type::HAIRPIN;  }
+      virtual ElementType type() const override { return ElementType::HAIRPIN;  }
 
       HairpinType hairpinType() const      { return _hairpinType; }
       void setHairpinType(HairpinType val);
@@ -120,13 +118,13 @@ class Hairpin : public TextLineBase {
       Spatium hairpinContHeight() const      { return _hairpinContHeight; }
       void setHairpinContHeight(Spatium val) { _hairpinContHeight = val; }
 
-      virtual void write(Xml&) const override;
+      virtual void write(XmlWriter&) const override;
       virtual void read(XmlReader&) override;
 
       virtual QVariant getProperty(P_ID id) const override;
       virtual bool setProperty(P_ID propertyId, const QVariant&) override;
       virtual QVariant propertyDefault(P_ID id) const override;
-      virtual PropertyStyle propertyStyle(P_ID id) const override;
+      virtual PropertyFlags propertyFlags(P_ID id) const override;
       virtual void resetProperty(P_ID id) override;
       virtual StyleIdx getPropertyStyle(P_ID) const override;
 

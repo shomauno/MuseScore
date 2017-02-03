@@ -58,11 +58,11 @@ class BagpipeEmbellishment : public Element {
    public:
       BagpipeEmbellishment(Score* s) : Element(s), _embelType(0) { }
       virtual BagpipeEmbellishment* clone() const override { return new BagpipeEmbellishment(*this); }
-      virtual Element::Type type() const override          { return Element::Type::BAGPIPE_EMBELLISHMENT;           }
+      virtual ElementType type() const override          { return ElementType::BAGPIPE_EMBELLISHMENT;           }
       int embelType() const                       { return _embelType;                      }
       void setEmbelType(int val)                  { _embelType = val;                       }
       virtual qreal mag() const override;
-      virtual void write(Xml&) const override;
+      virtual void write(XmlWriter&) const override;
       virtual void read(XmlReader&) override;
       virtual void layout() override;
       virtual void draw(QPainter*) const override;

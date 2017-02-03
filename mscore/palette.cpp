@@ -63,13 +63,13 @@ static bool needsStaff(Element* e)
       if (e == 0)
             return false;
       switch(e->type()) {
-            case Element::Type::CHORD:
-            case Element::Type::BAR_LINE:
-            case Element::Type::CLEF:
-            case Element::Type::KEYSIG:
-            case Element::Type::TIMESIG:
-            case Element::Type::REST:
-            case Element::Type::BAGPIPE_EMBELLISHMENT:
+            case ElementType::CHORD:
+            case ElementType::BAR_LINE:
+            case ElementType::CLEF:
+            case ElementType::KEYSIG:
+            case ElementType::TIMESIG:
+            case ElementType::REST:
+            case ElementType::BAGPIPE_EMBELLISHMENT:
                   return true;
             default:
                   return false;
@@ -83,7 +83,7 @@ static bool needsStaff(Element* e)
 Palette::Palette(QWidget* parent)
    : QWidget(parent)
       {
-      extraMag      = 1.0 * guiScaling;
+      extraMag      = 1.0;
       currentIdx    = -1;
       dragIdx       = -1;
       selectedIdx   = -1;
@@ -120,11 +120,14 @@ void Palette::resizeEvent(QResizeEvent* e)
 
 bool Palette::filter(const QString& text)
       {
+      filterActive = false;
       QString t = text.toLower();
       bool res = true;
+      dragCells.clear();
+
       for (PaletteCell* cell : cells) {
             QStringList h = cell->name.toLower().split(" ");
-            bool c = false;
+            bool c        = false;
             QStringList n = t.split(" ");
             for (QString hs : h) {
                   for (QString ns : n) {
@@ -134,8 +137,11 @@ bool Palette::filter(const QString& text)
                   if (c)
                         break;
                   }
+            if (t.isEmpty() || c)
+                  dragCells.append(cell);
             bool contains = t.isEmpty() || c;
-            cell->visible = contains;
+            if (!contains)
+                  filterActive = true;
             if (contains && res)
                   res = false;
             }
@@ -190,7 +196,7 @@ void Palette::setReadOnly(bool val)
 
 void Palette::setMag(qreal val)
       {
-      extraMag = val * guiScaling;
+      extraMag = val;
       }
 
 //---------------------------------------------------------
@@ -238,9 +244,8 @@ void Palette::contextMenuEvent(QContextMenuEvent* event)
             if (c == 0)
                   return;
             PaletteCellProperties props(c);
-            if (props.exec()) {
+            if (props.exec())
                   emit changed();
-                  }
             }
       else if (moreAction && (action == moreAction))
             emit displayMore(_name);
@@ -263,8 +268,8 @@ void Palette::contextMenuEvent(QContextMenuEvent* event)
 
 void Palette::setGrid(int hh, int vv)
       {
-      hgrid = hh * guiScaling;
-      vgrid = vv * guiScaling;
+      hgrid = hh;
+      vgrid = vv;
       QSize s(hgrid, vgrid);
       setSizeIncrement(s);
       setBaseSize(s);
@@ -291,7 +296,8 @@ Element* Palette::element(int idx)
 void Palette::mousePressEvent(QMouseEvent* ev)
       {
       dragStartPosition = ev->pos();
-      dragIdx = idx(dragStartPosition);
+      dragIdx           = idx(dragStartPosition);
+
       if (dragIdx == -1)
             return;
       if (_selectable) {
@@ -304,6 +310,51 @@ void Palette::mousePressEvent(QMouseEvent* ev)
       PaletteCell* cell = cellAt(dragIdx);
       if (cell && (cell->tag == "ShowMore"))
             emit displayMore(_name);
+      }
+
+//---------------------------------------------------------
+//   mouseMoveEvent
+//---------------------------------------------------------
+
+void Palette::mouseMoveEvent(QMouseEvent* ev)
+      {
+      if ((currentIdx != -1) && (dragIdx == currentIdx) && (ev->buttons() & Qt::LeftButton)
+         && (ev->pos() - dragStartPosition).manhattanLength() > QApplication::startDragDistance())
+            {
+            PaletteCell* cell = cellAt(currentIdx);
+            if (cell && cell->element) {
+                  QDrag* drag         = new QDrag(this);
+                  QMimeData* mimeData = new QMimeData;
+                  Element* el         = cell->element;
+
+                  mimeData->setData(mimeSymbolFormat, el->mimeData(QPointF()));
+                  drag->setMimeData(mimeData);
+
+                  drag->setPixmap(pixmap(currentIdx));
+                  QRect r = idxRect(currentIdx);
+
+                  QPoint o(dragStartPosition - r.topLeft());
+                  drag->setHotSpot(o);
+
+                  Qt::DropActions da;
+                  if (!(_readOnly || filterActive) && (ev->modifiers() & Qt::ShiftModifier)) {
+                        dragCells = cells;      // backup
+                        da = Qt::MoveAction;
+                        }
+                  else
+                        da = Qt::CopyAction;
+                  Qt::DropAction a = drag->exec(da);
+                  if (da == Qt::MoveAction && a != da)
+                        cells = dragCells;      // restore on a failed move action
+                  update();
+                  }
+            }
+      else {
+            currentIdx = idx(ev->pos());
+            if (currentIdx != -1 && cellAt(currentIdx) == 0)
+                  currentIdx = -1;
+            update();
+            }
       }
 
 //---------------------------------------------------------
@@ -323,12 +374,13 @@ static void applyDrop(Score* score, ScoreView* viewer, Element* target, Element*
             // use same code path as drag&drop
 
             QByteArray a = e->mimeData(QPointF());
-            XmlReader e(a);
+            XmlReader e(gscore, a);
             Fraction duration;  // dummy
             QPointF dragOffset;
-            Element::Type type = Element::readType(e, &dragOffset, &duration);
+            ElementType type = Element::readType(e, &dragOffset, &duration);
             dropData.element = Element::create(type, score);
             dropData.element->read(e);
+            dropData.element->styleChanged();   // update to local style
 
             Element* el = target->drop(dropData);
             if (el)
@@ -388,8 +440,8 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                         e = sel.elements().first();
                   if (e) {
                         // get note if selection was full chord
-                        if (e->type() == Element::Type::CHORD)
-                              e = static_cast<Chord*>(e)->upNote();
+                        if (e->isChord())
+                              e = toChord(e)->upNote();
                         // use voice of element being added to (otherwise we can might corrupt the measure)
                         element->setTrack(e->voice());
                         applyDrop(score, viewer, e, element);
@@ -402,19 +454,19 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
             else if (element->isSlur() && addSingle) {
                   viewer->cmdAddSlur();
                   }
-            else if (element->isSLine() && element->type() != Element::Type::GLISSANDO && addSingle) {
+            else if (element->isSLine() && element->type() != ElementType::GLISSANDO && addSingle) {
                   Segment* startSegment = cr1->segment();
                   Segment* endSegment = cr2->segment();
-                  if (element->type() == Element::Type::PEDAL && cr2 != cr1)
+                  if (element->type() == ElementType::PEDAL && cr2 != cr1)
                         endSegment = endSegment->nextCR(cr2->track());
                   // TODO - handle cross-voice selections
                   int idx = cr1->staffIdx();
 
                   QByteArray a = element->mimeData(QPointF());
-                  XmlReader e(a);
+                  XmlReader e(gscore, a);
                   Fraction duration;  // dummy
                   QPointF dragOffset;
-                  Element::Type type = Element::readType(e, &dragOffset, &duration);
+                  ElementType type = Element::readType(e, &dragOffset, &duration);
                   Spanner* spanner = static_cast<Spanner*>(Element::create(type, score));
                   spanner->read(e);
                   score->cmdAddSpanner(spanner, idx, startSegment, endSegment);
@@ -425,22 +477,22 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                   }
             }
       else if (sel.isRange()) {
-            if (element->type() == Element::Type::BAR_LINE
-                || element->type() == Element::Type::MARKER
-                || element->type() == Element::Type::JUMP
-                || element->type() == Element::Type::SPACER
-                || element->type() == Element::Type::LAYOUT_BREAK
-                || element->type() == Element::Type::VBOX
-                || element->type() == Element::Type::HBOX
-                || element->type() == Element::Type::TBOX
-                || element->type() == Element::Type::MEASURE
-                || element->type() == Element::Type::BRACKET
-                || (element->type() == Element::Type::ICON
-                    && (static_cast<Icon*>(element)->iconType() == IconType::VFRAME
-                        || static_cast<Icon*>(element)->iconType() == IconType::HFRAME
-                        || static_cast<Icon*>(element)->iconType() == IconType::TFRAME
-                        || static_cast<Icon*>(element)->iconType() == IconType::MEASURE
-                        || static_cast<Icon*>(element)->iconType() == IconType::BRACKETS))) {
+            if (element->type() == ElementType::BAR_LINE
+                || element->type() == ElementType::MARKER
+                || element->type() == ElementType::JUMP
+                || element->type() == ElementType::SPACER
+                || element->type() == ElementType::LAYOUT_BREAK
+                || element->type() == ElementType::VBOX
+                || element->type() == ElementType::HBOX
+                || element->type() == ElementType::TBOX
+                || element->type() == ElementType::MEASURE
+                || element->type() == ElementType::BRACKET
+                || (element->type() == ElementType::ICON
+                    && (toIcon(element)->iconType() == IconType::VFRAME
+                        || toIcon(element)->iconType() == IconType::HFRAME
+                        || toIcon(element)->iconType() == IconType::TFRAME
+                        || toIcon(element)->iconType() == IconType::MEASURE
+                        || toIcon(element)->iconType() == IconType::BRACKETS))) {
                   Measure* last = sel.endSegment() ? sel.endSegment()->measure() : nullptr;
                   for (Measure* m = sel.startSegment()->measure(); m; m = m->nextMeasureMM()) {
                         QRectF r = m->staffabbox(sel.staffStart());
@@ -451,9 +503,7 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                               break;
                         }
                   }
-            else if (element->type() == Element::Type::CLEF
-                     || element->type() == Element::Type::KEYSIG
-                     || element->type() == Element::Type::TIMESIG) {
+            else if (element->isClef() || element->isKeySig() || element->isTimeSig()) {
                   Measure* m1 = sel.startSegment()->measure();
                   Measure* m2 = sel.endSegment() ? sel.endSegment()->measure() : nullptr;
                   if (m2 == m1 && sel.startSegment()->rtick() == 0)
@@ -463,13 +513,13 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                   // for clefs, apply to each staff separately
                   // otherwise just apply to top staff
                   int staffIdx1 = sel.staffStart();
-                  int staffIdx2 = element->type() == Element::Type::CLEF ? sel.staffEnd() : staffIdx1 + 1;
+                  int staffIdx2 = element->type() == ElementType::CLEF ? sel.staffEnd() : staffIdx1 + 1;
                   for (int i = staffIdx1; i < staffIdx2; ++i) {
                         // for clefs, use mid-measure changes if appropriate
                         Element* e1 = nullptr;
                         Element* e2 = nullptr;
                         // use mid-measure clef changes as appropriate
-                        if (element->type() == Element::Type::CLEF) {
+                        if (element->type() == ElementType::CLEF) {
                               if (sel.startSegment()->segmentType() == Segment::Type::ChordRest && sel.startSegment()->rtick() != 0) {
                                     ChordRest* cr = static_cast<ChordRest*>(sel.startSegment()->nextChordRest(i * VOICES));
                                     if (cr && cr->isChord())
@@ -491,14 +541,14 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                               int tick1 = sel.startSegment()->tick();
                               Element* oelement = nullptr;
                               switch (element->type()) {
-                                    case Element::Type::CLEF:
+                                    case ElementType::CLEF:
                                           {
                                           Clef* oclef = new Clef(score);
                                           oclef->setClefType(staff->clef(tick1));
                                           oelement = oclef;
                                           break;
                                           }
-                                    case Element::Type::KEYSIG:
+                                    case ElementType::KEYSIG:
                                           {
                                           KeySig* okeysig = new KeySig(score);
                                           okeysig->setKeySigEvent(staff->keySigEvent(tick1));
@@ -512,7 +562,7 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                                           oelement = okeysig;
                                           break;
                                           }
-                                    case Element::Type::TIMESIG:
+                                    case ElementType::TIMESIG:
                                           {
                                           TimeSig* otimesig = new TimeSig(score);
                                           otimesig->setFrom(staff->timeSig(tick1));
@@ -547,10 +597,10 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                               }
                         }
                   }
-            else if (element->type() == Element::Type::SLUR) {
+            else if (element->type() == ElementType::SLUR) {
                   viewer->cmdAddSlur();
                   }
-            else if (element->isSLine() && element->type() != Element::Type::GLISSANDO) {
+            else if (element->isSLine() && element->type() != ElementType::GLISSANDO) {
                   Segment* startSegment = sel.startSegment();
                   Segment* endSegment = sel.endSegment();
                   int endStaff = sel.staffEnd();
@@ -570,14 +620,14 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
                               Element* e = s->element(track);
                               if (e == 0)
                                     continue;
-                              if (e->type() == Element::Type::CHORD) {
+                              if (e->type() == ElementType::CHORD) {
                                     Chord* chord = static_cast<Chord*>(e);
                                     for (Note* n : chord->notes())
                                           applyDrop(score, viewer, n, element);
                                     }
                               else {
                                     // do not apply articulation to barline in a range selection
-                                    if(e->type() != Element::Type::BAR_LINE || element->type() != Element::Type::ARTICULATION)
+                                    if(e->type() != ElementType::BAR_LINE || element->type() != ElementType::ARTICULATION)
                                           applyDrop(score, viewer, e, element);
                                     }
                               }
@@ -594,6 +644,7 @@ void Palette::mouseDoubleClickEvent(QMouseEvent* ev)
             if (viewer->mscoreState() == STATE_NOTE_ENTRY_STAFF_DRUM)
                   viewer->moveCursor();
             }
+      viewer->setDropTarget(0);
       mscore->endCmd();
       }
 
@@ -656,7 +707,7 @@ int Palette::idx2(const QPoint& p) const
 //   idxRect
 //---------------------------------------------------------
 
-QRect Palette::idxRect(int i)
+QRect Palette::idxRect(int i) const
       {
       if (i == -1)
             return QRect();
@@ -669,54 +720,6 @@ QRect Palette::idxRect(int i)
       int cc = i % columns();
       int cr = i / columns();
       return QRect(cc * hhgrid, cr * vgrid, hhgrid, vgrid);
-      }
-
-//---------------------------------------------------------
-//   mouseMoveEvent
-//---------------------------------------------------------
-
-void Palette::mouseMoveEvent(QMouseEvent* ev)
-      {
-      if ((currentIdx != -1) && (dragIdx == currentIdx) && (ev->buttons() & Qt::LeftButton)
-         && (ev->pos() - dragStartPosition).manhattanLength() > QApplication::startDragDistance()) {
-            PaletteCell* cell = cellAt(currentIdx);
-            if (cell && cell->element) {
-                  QDrag* drag = new QDrag(this);
-                  QMimeData* mimeData = new QMimeData;
-                  Element* el  = cell->element;
-                  qreal mag    = PALETTE_SPATIUM * extraMag / gscore->spatium();
-                  QPointF spos = QPointF(dragStartPosition) / mag;
-                  spos        -= QPointF(cell->x, cell->y);
-
-                  // DEBUG:
-                  spos.setX(0.0);
-                  mimeData->setData(mimeSymbolFormat, el->mimeData(spos));
-                  drag->setMimeData(mimeData);
-
-                  dragSrcIdx = currentIdx;
-                  emit startDragElement(el);
-                  if (_readOnly) {
-                        drag->start(Qt::CopyAction);
-                        }
-                  else {
-                        /*Qt::DropAction action = */
-                        drag->start(Qt::DropActions(Qt::CopyAction | Qt::MoveAction));
-                        }
-                  }
-            }
-      else {
-            QRect r;
-            if (currentIdx != -1)
-                  r = idxRect(currentIdx);
-            currentIdx = idx(ev->pos());
-            if (currentIdx != -1) {
-                  if (cellAt(currentIdx) == 0)
-                        currentIdx = -1;
-                  else
-                        r |= idxRect(currentIdx);
-                  }
-            update(r);
-            }
       }
 
 //---------------------------------------------------------
@@ -789,8 +792,8 @@ PaletteCell* Palette::add(int idx, Element* s, const QString& name, QString tag,
       cell->mag       = mag;
       cell->readOnly  = false;
       update();
-      if (s && s->type() == Element::Type::ICON) {
-            Icon* icon = static_cast<Icon*>(s);
+      if (s && s->isIcon()) {
+            Icon* icon = toIcon(s);
             connect(getAction(icon->action()), SIGNAL(toggled(bool)), SLOT(actionToggled(bool)));
             }
       updateGeometry();
@@ -817,7 +820,8 @@ static void paintPaletteElement(void* data, Element* e)
 void Palette::paintEvent(QPaintEvent* /*event*/)
       {
       qreal _spatium = gscore->spatium();
-      qreal mag = PALETTE_SPATIUM * extraMag / _spatium;
+//      qreal mag      = PALETTE_SPATIUM * extraMag * guiScaling / _spatium;
+      qreal mag      = PALETTE_SPATIUM * extraMag / _spatium;
       gscore->setSpatium(SPATIUM20);
 
       QPainter p(this);
@@ -861,30 +865,27 @@ void Palette::paintEvent(QPaintEvent* /*event*/)
 
       // QPen pen(palette().color(QPalette::Normal, QPalette::Text));
       QPen pen(Qt::black);
-      pen.setWidthF(MScore::defaultStyle()->value(StyleIdx::staffLineWidth).toDouble() * PALETTE_SPATIUM * extraMag);
+      pen.setWidthF(MScore::defaultStyle().value(StyleIdx::staffLineWidth).toDouble() * PALETTE_SPATIUM * extraMag);
 
-      int actualIndex = 0;
-      for (int idx = 0; idx < cells.size(); ++idx) {
-            int yoffset = gscore->spatium() * _yOffset;
-            QRect r = idxRect(actualIndex);
+      for (int idx = 0; idx < ccp()->size(); ++idx) {
+            int yoffset  = gscore->spatium() * _yOffset;
+            QRect r      = idxRect(idx);
             QRect rShift = r.translated(0, yoffset);
             p.setPen(pen);
             QColor c(MScore::selectColor[0]);
-            if (actualIndex == selectedIdx) {
+            if (idx == selectedIdx) {
                   c.setAlpha(100);
                   p.fillRect(r, c);
                   }
-            else if (actualIndex == currentIdx) {
+            else if (idx == currentIdx) {
                   c.setAlpha(50);
                   p.fillRect(r, c);
                   }
-
-            if (cells.isEmpty() || cells[idx] == 0)
+            if (ccp()->at(idx) == 0)
                   continue;
-            if (!cells[idx]->visible)
-                  continue;
+            PaletteCell* cc = ccp()->at(idx);      // current cell
 
-            QString tag = cells[idx]->tag;
+            QString tag = cc->tag;
             if (!tag.isEmpty()) {
                   p.setPen(Qt::darkGray);
                   QFont f(p.font());
@@ -898,82 +899,121 @@ void Palette::paintEvent(QPaintEvent* /*event*/)
 
             p.setPen(pen);
 
-            Element* el = cells[idx]->element;
+            Element* el = cc->element;
             if (el == 0)
                   continue;
-            bool drawStaff = cells[idx]->drawStaff;
-            if (el->type() == Element::Type::ICON) {
-                  int x      = rShift.x();
-                  int y      = rShift.y();
-                  Icon* _icon = static_cast<Icon*>(el);
-                  QIcon icon = _icon->icon();
-                  static const int border = 2;
-                  int size   = (hhgrid < vgrid ? hhgrid : vgrid) - 2 * border;
-                  QPixmap pm(icon.pixmap(size, QIcon::Normal, QIcon::On));
-                  p.drawPixmap(x + (hhgrid - size) / 2, y + (vgrid - size) / 2, pm);
+            bool drawStaff = cc->drawStaff;
+            int row    = idx / columns();
+            int column = idx % columns();
+
+            qreal cellMag = cc->mag * mag;
+            if (el->isIcon()) {
+                  toIcon(el)->setExtent((hhgrid < vgrid ? hhgrid : vgrid) - 4);
+                  cellMag = 1.0;
                   }
-            else {
-                  int row    = actualIndex / columns();
-                  int column = actualIndex % columns();
+            el->layout();
 
-                  el->layout();
-
-                  qreal cellMag = cells[idx]->mag * mag;
-                  if (drawStaff) {
-                        qreal y = r.y() + vgrid * .5 - dy + _yOffset * _spatium * cellMag;
-                        qreal x = r.x() + 3;
-                        qreal w = hhgrid - 6;
-                        for (int i = 0; i < 5; ++i) {
-                              qreal yy = y + PALETTE_SPATIUM * i * extraMag;
-                              p.drawLine(QLineF(x, yy, x + w, yy));
-                              }
+            if (drawStaff) {
+                  qreal y = r.y() + vgrid * .5 - dy + _yOffset * _spatium * cellMag;
+                  qreal x = r.x() + 3;
+                  qreal w = hhgrid - 6;
+                  for (int i = 0; i < 5; ++i) {
+                        qreal yy = y + PALETTE_SPATIUM * i * extraMag;
+                        p.drawLine(QLineF(x, yy, x + w, yy));
                         }
-                  p.save();
-                  p.scale(cellMag, cellMag);
-
-                  double gw = hhgrid / cellMag;
-                  double gh = vgrid / cellMag;
-                  double gx = column * gw + cells[idx]->xoffset * _spatium;
-                  double gy = row    * gh + cells[idx]->yoffset * _spatium;
-
-                  double sw = el->width();
-                  double sh = el->height();
-                  double sy;
-
-                  if (drawStaff)
-                        sy = gy + gh * .5 - 2.0 * _spatium;
-                  else
-                        sy  = gy + (gh - sh) * .5 - el->bbox().y();
-                  double sx  = gx + (gw - sw) * .5 - el->bbox().x();
-
-                  sy += _yOffset * _spatium;
-
-                  p.translate(sx, sy);
-                  cells[idx]->x = sx;
-                  cells[idx]->y = sy;
-
-                  QColor color;
-                  if (idx != selectedIdx) {
-                        // show voice colors for notes
-                        if (el->type() == Element::Type::CHORD) {
-                              Chord* c = static_cast<Chord*>(el);
-                              for (Note* n : c->notes())
-                                    n->setSelected(true);
-                              color = el->curColor();
-                              }
-                        else
-                              color = palette().color(QPalette::Normal, QPalette::Text);
-                        }
-                  else
-                        color = palette().color(QPalette::Normal, QPalette::HighlightedText);
-
-                  p.setPen(QPen(color));
-                  el->scanElements(&p, paintPaletteElement);
-                  p.restore();
                   }
-            if (cells[idx]->visible)
-                  actualIndex++;
+            p.save();
+            p.scale(cellMag, cellMag);
+
+            double gw = hhgrid / cellMag;
+            double gh = vgrid / cellMag;
+            double gx = column * gw + cc->xoffset * _spatium;
+            double gy = row    * gh + cc->yoffset * _spatium;
+
+            double sw = el->width();
+            double sh = el->height();
+            double sy;
+
+            if (drawStaff)
+                  sy = gy + gh * .5 - 2.0 * _spatium;
+            else
+                  sy  = gy + (gh - sh) * .5 - el->bbox().y();
+            double sx  = gx + (gw - sw) * .5 - el->bbox().x();
+
+            sy += _yOffset * _spatium;
+
+            p.translate(sx, sy);
+            cc->x = sx;
+            cc->y = sy;
+
+            QColor color;
+            if (idx != selectedIdx) {
+                  // show voice colors for notes
+                  if (el->isChord())
+                        color = el->curColor();
+                  else
+                        color = palette().color(QPalette::Normal, QPalette::Text);
+                  }
+            else
+                  color = palette().color(QPalette::Normal, QPalette::HighlightedText);
+
+            p.setPen(QPen(color));
+            el->scanElements(&p, paintPaletteElement);
+            p.restore();
             }
+      }
+
+//---------------------------------------------------------
+//   pixmap
+//---------------------------------------------------------
+
+QPixmap Palette::pixmap(int paletteIdx) const
+      {
+      qreal _spatium = gscore->spatium();
+      qreal mag      = PALETTE_SPATIUM * extraMag / _spatium;
+      PaletteCell* c = cellAt(paletteIdx);
+      if (!c || !c->element)
+            return QPixmap();
+      qreal cellMag = c->mag * mag;
+      Element* e = c->element;
+      e->layout();
+      QRectF r = e->bbox();
+      int w    = lrint(r.width()  * cellMag);
+      int h    = lrint(r.height() * cellMag);
+
+      if (w * h == 0) {
+            qDebug("zero pixmap %d %d %s", w, h, e->name());
+            return QPixmap();
+            }
+
+      QPixmap pm(w, h);
+      pm.fill(Qt::transparent);
+      QPainter p(&pm);
+      p.setRenderHint(QPainter::Antialiasing, true);
+
+      if (e->isIcon())
+            toIcon(e)->setExtent(w < h ? w : h);
+      p.scale(cellMag, cellMag);
+
+      QPointF pos = e->ipos();
+      e->setPos(-r.topLeft());
+
+      QColor color;
+       // show voice colors for notes
+      if (e->isChord()) {
+             Chord* chord = toChord(e);
+             for (Note* n : chord->notes())
+                   n->setSelected(true);
+             color = e->curColor();
+             }
+       else
+             color = palette().color(QPalette::Normal, QPalette::Text);
+
+      p.setPen(QPen(color));
+      e->scanElements(&p, paintPaletteElement);
+
+      e->setPos(pos);
+      return pm;
       }
 
 //---------------------------------------------------------
@@ -1009,200 +1049,15 @@ bool Palette::event(QEvent* ev)
       }
 
 //---------------------------------------------------------
-//   dragEnterEvent
-//---------------------------------------------------------
-
-void Palette::dragEnterEvent(QDragEnterEvent* event)
-      {
-      const QMimeData* data = event->mimeData();
-      if (data->hasUrls()) {
-            QList<QUrl>ul = event->mimeData()->urls();
-            QUrl u = ul.front();
-            if (MScore::debugMode) {
-                  qDebug("dragEnterEvent: Url: %s", qPrintable(u.toString()));
-                  qDebug("   scheme <%s> path <%s>", qPrintable(u.scheme()), qPrintable(u.path()));
-                  }
-            if (u.scheme() == "file") {
-                  QFileInfo fi(u.path());
-                  QString suffix(fi.suffix().toLower());
-                  if (suffix == "svg"
-                     || suffix == "jpg"
-                     || suffix == "jpeg"
-                     || suffix == "png"
-                     ) {
-                        event->acceptProposedAction();
-                        }
-                  }
-            }
-      else if (data->hasFormat(mimeSymbolFormat))
-            event->acceptProposedAction();
-      else {
-            if (MScore::debugMode) {
-                  qDebug("dragEnterEvent: formats:");
-                  foreach(const QString& s, event->mimeData()->formats())
-                        qDebug("   %s", s.toLatin1().data());
-                  }
-            }
-      }
-
-//---------------------------------------------------------
-//   dragMoveEvent
-//---------------------------------------------------------
-
-void Palette::dragMoveEvent(QDragMoveEvent* ev)
-      {
-      ev->acceptProposedAction();
-      int i = idx(ev->pos());
-      if (i == -1)
-            return;
-
-      QRect r;
-      if (currentIdx != -1)
-            r = idxRect(currentIdx);
-      update(r | idxRect(i));
-      currentIdx = i;
-      }
-
-//---------------------------------------------------------
-//   dropEvent
-//---------------------------------------------------------
-
-void Palette::dropEvent(QDropEvent* event)
-      {
-      Element* e = 0;
-      QString name;
-
-      const QMimeData* data = event->mimeData();
-      if (data->hasUrls()) {
-            QList<QUrl>ul = event->mimeData()->urls();
-            QUrl u = ul.front();
-            if (u.scheme() == "file") {
-                  QFileInfo fi(u.path());
-                  Image* s = new Image(gscore);
-                  QString filePath(u.toLocalFile());
-                  s->load(filePath);
-                  e = s;
-                  QFileInfo f(filePath);
-                  name = f.completeBaseName();
-                  }
-            }
-      else if (data->hasFormat(mimeSymbolFormat)) {
-            QByteArray data(event->mimeData()->data(mimeSymbolFormat));
-            XmlReader xml(data);
-            QPointF dragOffset;
-            Fraction duration;
-            Element::Type type = Element::readType(xml, &dragOffset, &duration);
-
-            if (type == Element::Type::SYMBOL) {
-                  Symbol* symbol = new Symbol(gscore);
-                  symbol->read(xml);
-                  e = symbol;
-                  }
-            else {
-                  e = Element::create(type, gscore);
-                  if (e) {
-                        e->read(xml);
-                        if (e->type() == Element::Type::TEXTLINE
-                           || e->type() == Element::Type::HAIRPIN
-                           || e->type() == Element::Type::VOLTA
-                           || e->type() == Element::Type::OTTAVA
-                           || e->type() == Element::Type::PEDAL
-                           || e->type() == Element::Type::TRILL
-                           ) {
-                              SLine* tl = static_cast<SLine*>(e);
-                              tl->setLen(gscore->spatium() * 7);
-                              tl->setTrack(0);
-                              }
-                        else if (e->type() == Element::Type::SLUR || e->type() == Element::Type::TIE) {
-                              SlurTie* st = static_cast<SlurTie*>(e);
-                              st->setTrack(0);
-                              }
-                        else if (e->type() == Element::Type::ICON) {
-                              Icon* i = static_cast<Icon*>(e);
-                              const QByteArray& action = i->action();
-                              if (!action.isEmpty()) {
-                                    const Shortcut* s = Shortcut::getShortcut(action);
-                                    if (s) {
-                                          QAction* a = s->action();
-                                          QIcon icon(a->icon());
-                                          i->setAction(action, icon);
-                                          }
-                                    }
-                              }
-//                        else if (e->type() == Element::Type::KEYSIG) {
-//                              KeySig* k = static_cast<KeySig*>(e);
-//                              }
-                        }
-                  }
-            }
-      if (e == 0)
-            return;
-      e->setSelected(false);
-      bool ok = false;
-      if (event->source() == this) {
-            int i = idx2(event->pos());
-            if (i == -1) {
-                  //Append if invalid index
-                  cells.append(cells[dragSrcIdx]);
-                  cells[dragSrcIdx] = 0;
-                  ok = true;
-                  }
-            else if (i > cells.size()-1) {
-                  //Append if past size+1
-                  for (int iter = i; i > cells.size(); iter--) {
-                      cells.append(0);
-                      }
-
-                  cells.append(cells[dragSrcIdx]);
-                  cells[dragSrcIdx] = 0;
-                  ok = true;
-                  }
-            else if (dragSrcIdx != i) {
-                  //Insert if within size()
-                  if (cells[i] != 0) {
-                          cells.move(dragSrcIdx,i);
-
-                      }
-                  else {
-                          cells.swap(dragSrcIdx,i);
-                          cells[dragSrcIdx] = 0;
-                      }
-                  delete e;
-                  ok = true;
-                  }
-            update(idxRect(i) | idxRect(dragSrcIdx));
-            event->setDropAction(Qt::MoveAction);
-            }
-      else {
-            int i = idx(event->pos());
-            if (i == -1 || cells[i] != 0)
-                  append(e, name);
-            else
-                  add(i, e, name);
-            ok = true;
-            }
-      if (ok) {
-            event->acceptProposedAction();
-            while (!cells.isEmpty() && cells.back() == 0) {
-                  cells.removeLast();
-                  }
-            setFixedHeight(heightForWidth(width()));
-            updateGeometry();
-            update();
-            emit changed();
-            }
-      }
-
-//---------------------------------------------------------
 //   write
 //---------------------------------------------------------
 
-void Palette::write(Xml& xml) const
+void Palette::write(XmlWriter& xml) const
       {
-      xml.stag(QString("Palette name=\"%1\"").arg(Xml::xmlString(_name)));
-      xml.tag("gridWidth", hgrid / guiScaling);
-      xml.tag("gridHeight", vgrid / guiScaling);
-      xml.tag("mag", extraMag / guiScaling);
+      xml.stag(QString("Palette name=\"%1\"").arg(XmlWriter::xmlString(_name)));
+      xml.tag("gridWidth", hgrid);
+      xml.tag("gridHeight", vgrid);
+      xml.tag("mag", extraMag);
       if (_drawGrid)
             xml.tag("grid", _drawGrid);
 
@@ -1219,7 +1074,7 @@ void Palette::write(Xml& xml) const
                   continue;
                   }
             if (!cells[i]->name.isEmpty())
-                  xml.stag(QString("Cell name=\"%1\"").arg(Xml::xmlString(cells[i]->name)));
+                  xml.stag(QString("Cell name=\"%1\"").arg(XmlWriter::xmlString(cells[i]->name)));
             else
                   xml.stag("Cell");
             if (cells[i]->drawStaff)
@@ -1245,7 +1100,7 @@ void Palette::write(Xml& xml) const
 
 bool Palette::read(QFile* qf)
       {
-      XmlReader e(qf);
+      XmlReader e(gscore, qf);
       while (e.readNextStartElement()) {
             if (e.name() == "museScore") {
                   QString version = e.attribute("version");
@@ -1287,7 +1142,7 @@ bool Palette::read(const QString& p)
 
       QByteArray ba = f.fileData("META-INF/container.xml");
 
-      XmlReader e(ba);
+      XmlReader e(gscore, ba);
       // extract first rootfile
       QString rootfile = "";
       QList<QString> images;
@@ -1374,7 +1229,7 @@ void Palette::write(const QString& p)
       QSet<ImageStoreItem*> images;
       int n = cells.size();
       for (int i = 0; i < n; ++i) {
-            if (cells[i] == 0 || cells[i]->element == 0 || cells[i]->element->type() != Element::Type::IMAGE)
+            if (cells[i] == 0 || cells[i]->element == 0 || cells[i]->element->type() != ElementType::IMAGE)
                   continue;
             images.insert(static_cast<Image*>(cells[i]->element)->storeItem());
             }
@@ -1397,11 +1252,11 @@ void Palette::write(const QString& p)
             }
       QBuffer cbuf;
       cbuf.open(QIODevice::ReadWrite);
-      Xml xml(&cbuf);
+      XmlWriter xml(gscore, &cbuf);
       xml.header();
       xml.stag("container");
       xml.stag("rootfiles");
-      xml.stag(QString("rootfile full-path=\"%1\"").arg(Xml::xmlString("palette.xml")));
+      xml.stag(QString("rootfile full-path=\"%1\"").arg(XmlWriter::xmlString("palette.xml")));
       xml.etag();
       foreach (ImageStoreItem* ip, images) {
             QString path = QString("Pictures/") + ip->hashName();
@@ -1422,7 +1277,7 @@ void Palette::write(const QString& p)
       {
       QBuffer cbuf;
       cbuf.open(QIODevice::ReadWrite);
-      Xml xml(&cbuf);
+      XmlWriter xml(gscore, &cbuf);
       xml.header();
       xml.stag("museScore version=\"" MSC_VERSION "\"");
       write(xml);
@@ -1444,11 +1299,11 @@ void Palette::read(XmlReader& e)
       while (e.readNextStartElement()) {
             const QStringRef& t(e.name());
             if (t == "gridWidth")
-                  hgrid = e.readDouble() * guiScaling;
+                  hgrid = e.readDouble();
             else if (t == "gridHeight")
-                  vgrid = e.readDouble() * guiScaling;
+                  vgrid = e.readDouble();
             else if (t == "mag")
-                  extraMag = e.readDouble() * guiScaling;
+                  extraMag = e.readDouble();
             else if (t == "grid")
                   _drawGrid = e.readInt();
             else if (t == "moreElements")
@@ -1482,7 +1337,7 @@ void Palette::read(XmlReader& e)
                                     }
                               else {
                                     cell->element->read(e);
-                                    if (cell->element->type() == Element::Type::ICON) {
+                                    if (cell->element->type() == ElementType::ICON) {
                                           Icon* icon = static_cast<Icon*>(cell->element);
                                           QAction* ac = getAction(icon->action());
                                           if (ac) {
@@ -1512,8 +1367,7 @@ void Palette::read(XmlReader& e)
 
 void Palette::clear()
       {
-      foreach(PaletteCell* cell, cells)
-            delete cell;
+      qDeleteAll(cells);
       cells.clear();
       }
 
@@ -1527,37 +1381,6 @@ int Palette::rows() const
       if (c == 0)
             return 0;
       return (size() + c - 1) / c;
-      }
-
-//---------------------------------------------------------
-//   size
-//---------------------------------------------------------
-
-int Palette::size() const
-      {
-      int s = 0;
-      for (PaletteCell* cell : cells) {
-            if (cell && cell->visible)
-                  s++;
-            }
-      return s;
-      }
-
-//---------------------------------------------------------
-//   cellAt
-//---------------------------------------------------------
-
-PaletteCell* Palette::cellAt(int index)
-      {
-      int s = 0;
-      for (PaletteCell* cell : cells) {
-            if (cell && cell->visible) {
-                  if (s == index)
-                        return cell;
-                  s++;
-                  }
-            }
-      return nullptr;
       }
 
 //---------------------------------------------------------
@@ -1600,7 +1423,7 @@ void Palette::actionToggled(bool /*val*/)
       int nn = size();
       for (int n = 0; n < nn; ++n) {
             Element* e = cellAt(n)->element;
-            if (e && e->type() == Element::Type::ICON) {
+            if (e && e->type() == ElementType::ICON) {
                   QAction* a = getAction(static_cast<Icon*>(e)->action());
                   if (a->isChecked()) {
                         selectedIdx = n;
@@ -1618,16 +1441,21 @@ void Palette::actionToggled(bool /*val*/)
 PaletteProperties::PaletteProperties(Palette* p, QWidget* parent)
    : QDialog(parent)
       {
-      palette = p;
+      setObjectName("PaletteProperties");
       setupUi(this);
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+      palette = p;
+
       name->setText(palette->name());
-      cellWidth->setValue(palette->gridWidth() / guiScaling);
-      cellHeight->setValue(palette->gridHeight() / guiScaling);
+      cellWidth->setValue(palette->gridWidth());
+      cellHeight->setValue(palette->gridHeight());
       showGrid->setChecked(palette->drawGrid());
       moreElements->setChecked(palette->moreElements());
       elementOffset->setValue(palette->yOffset());
-      mag->setValue(palette->mag() / guiScaling);
+      mag->setValue(palette->mag());
+
+      MuseScore::restoreGeometry(this);
       }
 
 //---------------------------------------------------------
@@ -1647,20 +1475,35 @@ void PaletteProperties::accept()
       }
 
 //---------------------------------------------------------
+//   hideEvent
+//---------------------------------------------------------
+
+void PaletteProperties::hideEvent(QHideEvent* event)
+      {
+      MuseScore::saveGeometry(this);
+      QWidget::hideEvent(event);
+      }
+
+//---------------------------------------------------------
 //   PaletteCellProperties
 //---------------------------------------------------------
 
 PaletteCellProperties::PaletteCellProperties(PaletteCell* p, QWidget* parent)
    : QDialog(parent)
       {
-      cell = p;
+      setObjectName("PaletteCellProperties");
       setupUi(this);
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
+
+      cell = p;
+
       xoffset->setValue(cell->xoffset);
       yoffset->setValue(cell->yoffset);
       scale->setValue(cell->mag);
       drawStaff->setChecked(cell->drawStaff);
       name->setText(p->name);
+
+      MuseScore::restoreGeometry(this);
       }
 
 //---------------------------------------------------------
@@ -1675,6 +1518,16 @@ void PaletteCellProperties::accept()
       cell->name    = name->text();
       cell->drawStaff = drawStaff->isChecked();
       QDialog::accept();
+      }
+
+//---------------------------------------------------------
+//   hideEvent
+//---------------------------------------------------------
+
+void PaletteCellProperties::hideEvent(QHideEvent* event)
+      {
+      MuseScore::saveGeometry(this);
+      QWidget::hideEvent(event);
       }
 
 //---------------------------------------------------------
@@ -1707,6 +1560,156 @@ void PaletteScrollArea::resizeEvent(QResizeEvent* re)
             setMaximumHeight(h+6);
             }
       }
-}
 
+//---------------------------------------------------------
+//   dragEnterEvent
+//---------------------------------------------------------
+
+void Palette::dragEnterEvent(QDragEnterEvent* event)
+      {
+      const QMimeData* data = event->mimeData();
+      if (data->hasUrls()) {
+            QList<QUrl>ul = event->mimeData()->urls();
+            QUrl u = ul.front();
+            if (MScore::debugMode) {
+                  qDebug("dragEnterEvent: Url: %s", qPrintable(u.toString()));
+                  qDebug("   scheme <%s> path <%s>", qPrintable(u.scheme()), qPrintable(u.path()));
+                  }
+            if (u.scheme() == "file") {
+                  QFileInfo fi(u.path());
+                  QString suffix(fi.suffix().toLower());
+                  if (suffix == "svg"
+                     || suffix == "jpg"
+                     || suffix == "jpeg"
+                     || suffix == "png"
+                     ) {
+                        event->acceptProposedAction();
+                        }
+                  }
+            }
+      else if (data->hasFormat(mimeSymbolFormat)) {
+            event->accept();
+            update();
+            }
+      else {
+            event->ignore();
+#ifndef NDEBUG
+            qDebug("dragEnterEvent: formats:");
+            for (const QString& s : event->mimeData()->formats())
+                  qDebug("   %s", qPrintable(s));
+#endif
+            }
+      }
+
+//---------------------------------------------------------
+//   dragMoveEvent
+//---------------------------------------------------------
+
+void Palette::dragMoveEvent(QDragMoveEvent* event)
+      {
+      int i = idx(event->pos());
+      if (event->source() == this) {
+            if (i != -1) {
+                  if (currentIdx != -1 && event->proposedAction() == Qt::MoveAction) {
+                        if (i != currentIdx) {
+                              PaletteCell* c = cells.takeAt(currentIdx);
+                              cells.insert(i, c);
+                              currentIdx = i;
+                              update();
+                              }
+                        event->accept();
+                        return;
+                        }
+                  }
+            event->ignore();
+            }
+      else
+            event->accept();
+      }
+
+//---------------------------------------------------------
+//   dropEvent
+//---------------------------------------------------------
+
+void Palette::dropEvent(QDropEvent* event)
+      {
+      Element* e = 0;
+      QString name;
+
+      const QMimeData* data = event->mimeData();
+      if (data->hasUrls()) {
+            QList<QUrl>ul = event->mimeData()->urls();
+            QUrl u = ul.front();
+            if (u.scheme() == "file") {
+                  QFileInfo fi(u.path());
+                  Image* s = new Image(gscore);
+                  QString filePath(u.toLocalFile());
+                  s->load(filePath);
+                  e = s;
+                  QFileInfo f(filePath);
+                  name = f.completeBaseName();
+                  }
+            }
+      else if (data->hasFormat(mimeSymbolFormat)) {
+            QByteArray data(event->mimeData()->data(mimeSymbolFormat));
+            XmlReader xml(gscore, data);
+            QPointF dragOffset;
+            Fraction duration;
+            ElementType type = Element::readType(xml, &dragOffset, &duration);
+
+            if (type == ElementType::SYMBOL) {
+                  Symbol* symbol = new Symbol(gscore);
+                  symbol->read(xml);
+                  e = symbol;
+                  }
+            else {
+                  e = Element::create(type, gscore);
+                  if (e) {
+                        e->read(xml);
+                        e->setTrack(0);
+                        if (e->isIcon()) {
+                              Icon* i = toIcon(e);
+                              const QByteArray& action = i->action();
+                              if (!action.isEmpty()) {
+                                    const Shortcut* s = Shortcut::getShortcut(action);
+                                    if (s) {
+                                          QAction* a = s->action();
+                                          QIcon icon(a->icon());
+                                          i->setAction(action, icon);
+                                          }
+                                    }
+                              }
+                        }
+                  }
+            }
+      if (e == 0) {
+            event->ignore();
+            return;
+            }
+      if (event->source() == this) {
+            delete e;
+            if (event->proposedAction() == Qt::MoveAction) {
+                  event->accept();
+                  emit changed();
+                  return;
+                  }
+            event->ignore();
+            return;
+            }
+      e->setSelected(false);
+      int i = idx(event->pos());
+      if (i == -1 || cells[i])
+            append(e, name);
+      else
+            add(i, e, name);
+      event->accept();
+      while (!cells.isEmpty() && cells.back() == 0)
+            cells.removeLast();
+      setFixedHeight(heightForWidth(width()));
+      updateGeometry();
+      update();
+      emit changed();
+      }
+
+}
 

@@ -52,7 +52,7 @@ void Arpeggio::setHeight(qreal h)
 //   write
 //---------------------------------------------------------
 
-void Arpeggio::write(Xml& xml) const
+void Arpeggio::write(XmlWriter& xml) const
       {
       if (!xml.canWrite(this))
             return;
@@ -124,7 +124,7 @@ void Arpeggio::layout()
       qreal y2 = _height + _userLen2;
 
       if (staff())
-            setMag(staff()->mag());
+            setMag(staff()->mag(tick()));
       switch (arpeggioType()) {
             case ArpeggioType::NORMAL: {
                   symbolLine(SymId::wiggleArpeggiatoUp, SymId::wiggleArpeggiatoUp);
@@ -301,7 +301,7 @@ QPointF Arpeggio::gripAnchor(Grip n) const
             Note* dnote = c->downNote();
             int btrack  = track() + (_span - 1) * VOICES;
             ChordRest* bchord = static_cast<ChordRest*>(c->segment()->element(btrack));
-            if (bchord && bchord->type() == Element::Type::CHORD)
+            if (bchord && bchord->type() == ElementType::CHORD)
                   dnote = static_cast<Chord*>(bchord)->downNote();
             return dnote->pagePos();
             }
@@ -366,7 +366,7 @@ void Arpeggio::spatiumChanged(qreal oldValue, qreal newValue)
 
 bool Arpeggio::acceptDrop(const DropData& data) const
       {
-      return data.element->type() == Element::Type::ARPEGGIO;
+      return data.element->type() == ElementType::ARPEGGIO;
       }
 
 //---------------------------------------------------------
@@ -377,7 +377,7 @@ Element* Arpeggio::drop(const DropData& data)
       {
       Element* e = data.element;
       switch(e->type()) {
-            case Element::Type::ARPEGGIO:
+            case ElementType::ARPEGGIO:
                   {
                   Arpeggio* a = static_cast<Arpeggio*>(e);
                   if (parent())

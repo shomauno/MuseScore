@@ -80,12 +80,11 @@ static Dyn dynList[] = {
 //---------------------------------------------------------
 
 Dynamic::Dynamic(Score* s)
-   : Text(s)
+   : Text(SubStyle::DYNAMICS, s)
       {
       setFlags(ElementFlag::MOVABLE | ElementFlag::SELECTABLE | ElementFlag::ON_STAFF);
       _velocity = -1;
       _dynRange = Range::PART;
-      setTextStyleType(TextStyleType::DYNAMICS);
       _dynamicType  = Type::OTHER;
       }
 
@@ -110,7 +109,7 @@ int Dynamic::velocity() const
 //   write
 //---------------------------------------------------------
 
-void Dynamic::write(Xml& xml) const
+void Dynamic::write(XmlWriter& xml) const
       {
       if (!xml.canWrite(this))
             return;
@@ -139,8 +138,8 @@ void Dynamic::read(XmlReader& e)
             else if (!Text::readProperties(e))
                   e.unknown();
             }
-      if (textStyleType() == TextStyleType::DEFAULT)
-            setTextStyleType(TextStyleType::DYNAMICS);
+      if (subStyle() == SubStyle::DEFAULT)
+            initSubStyle(SubStyle::DYNAMICS);
       }
 
 //---------------------------------------------------------
@@ -152,10 +151,14 @@ void Dynamic::layout()
       if (autoplace())
             setUserOff(QPointF());
 
-      QPointF p(textStyle().offset(spatium()));
+      qreal y;
       if (placeAbove())
-            p.ry() = staff()->height() - p.ry() + lineHeight();
-      setPos(p);
+            y = score()->styleP(StyleIdx::dynamicsPosAbove);
+      else {
+            qreal sh = staff() ? staff()->height() : 0;
+            y = score()->styleP(StyleIdx::dynamicsPosBelow) + sh + lineSpacing();
+            }
+      setPos(QPointF(0.0, y));
       Text::layout1();
 
       Segment* s = segment();
@@ -197,7 +200,7 @@ void Dynamic::doAutoplace()
 
       qreal minDistance = score()->styleP(StyleIdx::dynamicsMinDistance);
       Shape s1          = s->staffShape(staffIdx()).translated(s->pos());
-      Shape s2          = shape().translated(s->pos());
+      Shape s2          = shape().translated(s->pos() + pos());
 
       if (placeAbove()) {
             qreal d = s2.minVerticalDistance(s1);
@@ -353,8 +356,8 @@ bool Dynamic::setProperty(P_ID propertyId, const QVariant& v)
 QVariant Dynamic::propertyDefault(P_ID id) const
       {
       switch(id) {
-            case P_ID::TEXT_STYLE_TYPE:
-                  return int(TextStyleType::DYNAMICS);
+            case P_ID::SUB_STYLE:
+                  return int(SubStyle::DYNAMICS);
             case P_ID::DYNAMIC_RANGE:
                   return int(Range::PART);
             case P_ID::VELOCITY:

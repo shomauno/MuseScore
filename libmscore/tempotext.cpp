@@ -27,21 +27,20 @@ namespace Ms {
 //---------------------------------------------------------
 
 TempoText::TempoText(Score* s)
-   : Text(s)
+   : Text(SubStyle::TEMPO, s)
       {
       _tempo      = 2.0;      // propertyDefault(P_TEMPO).toDouble();
       _followText = false;
       _relative = 1.0;
       _isRelative = false;
       setPlacement(Element::Placement::ABOVE);
-      setTextStyleType(TextStyleType::TEMPO);
       }
 
 //---------------------------------------------------------
 //   write
 //---------------------------------------------------------
 
-void TempoText::write(Xml& xml) const
+void TempoText::write(XmlWriter& xml) const
       {
       xml.stag("Tempo");
       xml.tag("tempo", _tempo);
@@ -71,7 +70,7 @@ void TempoText::read(XmlReader& e)
             // Reset text in old version to
             // style.
             //
-//TODO            if (textStyle() != TextStyleType::INVALID) {
+//TODO            if (textStyle() != StyledPropertyListIdx::INVALID) {
 //                  setStyled(true);
 //                  styleChanged();
 //                  }
@@ -188,11 +187,19 @@ void TempoText::textChanged()
       {
       if (!_followText)
             return;
+      // cache regexp, they are costly to create
+      static QHash<QString, QRegExp> regexps;
+      static QHash<QString, QRegExp> regexps2;
       QString s = plainText();
       s.replace(",", ".");
       s.replace("<sym>space</sym>"," ");
       for (const TempoPattern& pa : tp) {
-            QRegExp re(QString(pa.pattern)+"\\s*=\\s*(\\d+[.]{0,1}\\d*)\\s*");
+            QRegExp re;
+            if (!regexps.contains(pa.pattern)) {
+                  re = QRegExp(QString("%1\\s*=\\s*(\\d+[.]{0,1}\\d*)\\s*").arg(pa.pattern));
+                  regexps[pa.pattern] = re;
+                  }
+            re = regexps.value(pa.pattern);
             if (re.indexIn(s) != -1) {
                   QStringList sl = re.capturedTexts();
                   if (sl.size() == 2) {
@@ -208,8 +215,14 @@ void TempoText::textChanged()
                   }
             else {
                  for (const TempoPattern& pa2 : tp) {
-                       QRegExp re(QString("%1\\s*=\\s*%2\\s*").arg(pa.pattern).arg(pa2.pattern));
-                       if (re.indexIn(s) != -1) {
+                       QString key = QString("%1_%2").arg(pa.pattern).arg(pa2.pattern);
+                       QRegExp re2;
+                       if (!regexps2.contains(key)) {
+                             re2 = QRegExp(QString("%1\\s*=\\s*%2\\s*").arg(pa.pattern).arg(pa2.pattern));
+                             regexps2[key] = re2;
+                             }
+                       re2 = regexps2.value(key);
+                       if (re2.indexIn(s) != -1) {
                              _relative = pa2.f / pa.f;
                              _isRelative = true;
                              updateRelative();
@@ -297,6 +310,7 @@ bool TempoText::setProperty(P_ID propertyId, const QVariant& v)
 QVariant TempoText::propertyDefault(P_ID id) const
       {
       switch(id) {
+            case P_ID::SUB_STYLE:         return int(SubStyle::TEMPO);
             case P_ID::TEMPO:             return 2.0;
             case P_ID::TEMPO_FOLLOW_TEXT: return false;
             case P_ID::PLACEMENT:         return int(Element::Placement::ABOVE);
@@ -314,7 +328,7 @@ void TempoText::layout()
       {
       if (autoplace())
             setUserOff(QPointF());
-      setPos(textStyle().offset(spatium()));
+//      setPos(textStyle().offset(spatium()));
       Text::layout1();
 
       // tempo text on first chordrest of measure should align over time sig if present

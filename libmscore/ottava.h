@@ -14,6 +14,7 @@
 #define __OTTAVA_H__
 
 #include "textlinebase.h"
+#include "property.h"
 
 namespace Ms {
 
@@ -40,14 +41,14 @@ class OttavaSegment : public TextLineBaseSegment {
 
    public:
       OttavaSegment(Score* s) : TextLineBaseSegment(s)  { }
-      virtual Element::Type type() const override   { return Element::Type::OTTAVA_SEGMENT; }
+      virtual ElementType type() const override   { return ElementType::OTTAVA_SEGMENT; }
       virtual OttavaSegment* clone() const override { return new OttavaSegment(*this); }
       Ottava* ottava() const                        { return (Ottava*)spanner(); }
       virtual void layout() override;
       virtual QVariant getProperty(P_ID propertyId) const override;
       virtual bool setProperty(P_ID propertyId, const QVariant&) override;
       virtual QVariant propertyDefault(P_ID) const override;
-      virtual PropertyStyle propertyStyle(P_ID) const override;
+      virtual PropertyFlags propertyFlags(P_ID) const override;
       virtual void resetProperty(P_ID id) override;
       virtual void styleChanged() override;
       };
@@ -75,11 +76,11 @@ class Ottava : public TextLineBase {
    private:
       Type _ottavaType;
       bool _numbersOnly;
-      PropertyStyle numbersOnlyStyle  { PropertyStyle::STYLED };
-      PropertyStyle lineWidthStyle    { PropertyStyle::STYLED };
-      PropertyStyle lineStyleStyle    { PropertyStyle::STYLED };
-      PropertyStyle beginTextStyle    { PropertyStyle::STYLED };
-      PropertyStyle continueTextStyle { PropertyStyle::STYLED };
+      PropertyFlags numbersOnlyStyle  { PropertyFlags::STYLED };
+      PropertyFlags lineWidthStyle    { PropertyFlags::STYLED };
+      PropertyFlags lineStyleStyle    { PropertyFlags::STYLED };
+      PropertyFlags beginTextStyle    { PropertyFlags::STYLED };
+      PropertyFlags continueTextStyle { PropertyFlags::STYLED };
 
       int _pitchShift;
 
@@ -90,7 +91,7 @@ class Ottava : public TextLineBase {
       Ottava(Score* s);
       Ottava(const Ottava&);
       virtual Ottava* clone() const override      { return new Ottava(*this); }
-      virtual Element::Type type() const override { return Element::Type::OTTAVA; }
+      virtual ElementType type() const override { return ElementType::OTTAVA; }
 
       void setOttavaType(Type val);
       Type ottavaType() const       { return _ottavaType; }
@@ -103,19 +104,19 @@ class Ottava : public TextLineBase {
       int pitchShift() const { return _pitchShift; }
 
       virtual void endEdit() override;
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter& xml) const override;
       virtual void read(XmlReader& de) override;
 
       virtual QVariant getProperty(P_ID propertyId) const override;
       virtual bool setProperty(P_ID propertyId, const QVariant&) override;
       virtual QVariant propertyDefault(P_ID) const override;
-      virtual PropertyStyle propertyStyle(P_ID) const override;
+      virtual PropertyFlags propertyFlags(P_ID) const override;
       virtual void resetProperty(P_ID id) override;
       virtual StyleIdx getPropertyStyle(P_ID) const override;
-
-      virtual void setYoff(qreal) override;
       virtual void styleChanged() override;
       virtual void reset() override;
+
+      virtual void setYoff(qreal) override;
 
       virtual QString accessibleInfo() const override;
       };

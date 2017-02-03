@@ -53,6 +53,7 @@
 #include "libmscore/breath.h"
 #include "libmscore/hairpin.h"
 #include "libmscore/sym.h"
+#include "libmscore/articulation.h"
 
 extern QString rtf2html(const QString &);
 
@@ -229,7 +230,7 @@ static void processBasicDrawObj(QList<BasicDrawObj*> objects, Segment* s, int tr
                                           default:
                                                 break;
                                           }
-                                    if (cr->type() == Element::Type::CHORD)
+                                    if (cr->type() == ElementType::CHORD)
                                           switch (code) {
 #if 0 // TODO-ws
                                                 case 't':   //  trill
@@ -327,30 +328,36 @@ static void processBasicDrawObj(QList<BasicDrawObj*> objects, Segment* s, int tr
                               }
                         Text* text = new StaffText(score);
                         QFont f(st->font());
-                        text->textStyle().setFamily(f.family());
-                        text->textStyle().setItalic(f.italic());
+                        text->setFamily(f.family());
+                        text->setItalic(f.italic());
                         // text->setUnderline(f.underline());
-                        text->textStyle().setBold(f.bold());
-                        text->textStyle().setSize(f.pointSizeF());
+                        text->setBold(f.bold());
+                        text->setSize(f.pointSizeF());
 
                         text->setPlainText(st->text());
                         QPointF p(st->pos());
                         p = p / 32.0 * score->spatium();
                         // text->setUserOff(st->pos());
-                        text->setUserOff(p);
                         text->setAutoplace(false);
+                        text->setUserOff(p);
                         // qDebug("setText %s (%f %f)(%f %f) <%s>",
                         //            qPrintable(st->font().family()),
                         //            st->pos().x(), st->pos().y(), p.x(), p.y(), qPrintable(st->text()));
-                        Align textalign = AlignmentFlags::LEFT;
+                        Align textalign;
                         switch (st->textalign()) {
-                              case 0:   textalign = AlignmentFlags::LEFT;    break;
-                              case 1:   textalign = AlignmentFlags::HCENTER; break;
-                              case 2:   textalign = AlignmentFlags::RIGHT;   break;
-                              default:                                       break;
+                              default:
+                              case 0:
+                                    textalign = Align::LEFT;
+                                    break;
+                              case 1:
+                                    textalign = Align::HCENTER;
+                                    break;
+                              case 2:
+                                    textalign = Align::RIGHT;
+                                    break;
                               }
-                        text->textStyle().setAlign(textalign | AlignmentFlags::BASELINE);
-                        text->textStyle().setYoff(2.0);
+                        text->setAlign(textalign | Align::BASELINE);
+                        text->setOffset(QPointF(0.0, 2.0));
                         text->setTrack(track);
                         s->add(text);
                         }
@@ -481,7 +488,7 @@ static bool findChordRests(BasicDrawObj const* const o, Score* score, const int 
                   continue;
             ChordRest* cr = static_cast<ChordRest*>(seg->element(track));
             if (cr) {
-                  if ((graceNumber > 0) && (cr->type() == Element::Type::CHORD)) { // the spanner is ending on a grace note
+                  if ((graceNumber > 0) && (cr->type() == ElementType::CHORD)) { // the spanner is ending on a grace note
                         Chord* chord = static_cast<Chord*>(cr);
                         foreach(Chord* cc, chord->graceNotes()) {
                               --graceNumber;
@@ -805,7 +812,11 @@ static int readCapVoice(Score* score, CapVoice* cvoice, int staffIdx, int tick, 
                         clef->setClefType(nclef);
                         clef->setTrack(staffIdx * VOICES);
                         Measure* m = score->getCreateMeasure(tick);
-                        Segment* s = m->getSegment(Segment::Type::Clef, tick);
+                        Segment* s;
+                        if (tick == m->tick())
+                              s = m->getSegment(Segment::Type::HeaderClef, tick);
+                        else
+                              s = m->getSegment(Segment::Type::Clef, tick);
                         s->add(clef);
                         }
                         break;
@@ -950,21 +961,20 @@ static int readCapVoice(Score* score, CapVoice* cvoice, int staffIdx, int tick, 
                         case CapellaType::TEXT: {
 
                               TextObj* to = static_cast<TextObj*>(o);
-                              Text* s = new Text(score);
+                              Text* s = new Text(SubStyle::TITLE, score);
                               QString ss = ::rtf2html(QString(to->text));
 
                               // qDebug("string %f:%f w %d ratio %d <%s>",
                               //    to->relPos.x(), to->relPos.y(), to->width, to->yxRatio, qPrintable(ss));
                               s->setXmlText(ss);
                               MeasureBase* measure = score->measures()->first();
-                              if (measure->type() != Element::Type::VBOX) {
+                              if (measure->type() != ElementType::VBOX) {
                                     MeasureBase* mb = new VBox(score);
                                     mb->setTick(0);
                                     score->addMeasure(mb, measure);
                                     measure = mb;
                                     }
                               s->setParent(measure);
-                              s->setTextStyleType(TextStyleType::TITLE);
                               measure->add(s);
                               }
                               break;
@@ -1105,12 +1115,12 @@ void convertCapella(Score* score, Capella* cap, bool capxMode)
       if (cap->systems.isEmpty())
             return;
 
-      score->style()->set(StyleIdx::measureSpacing, 1.0);
+      score->style().set(StyleIdx::measureSpacing, 1.0);
       score->setSpatium(cap->normalLineDist * DPMM);
-      score->style()->set(StyleIdx::smallStaffMag, cap->smallLineDist / cap->normalLineDist);
-      score->style()->set(StyleIdx::minSystemDistance, Spatium(8));
-      score->style()->set(StyleIdx::maxSystemDistance, Spatium(12));
-      // score->style()->set(StyleIdx::hideEmptyStaves, true);
+      score->style().set(StyleIdx::smallStaffMag, cap->smallLineDist / cap->normalLineDist);
+      score->style().set(StyleIdx::minSystemDistance, Spatium(8));
+      score->style().set(StyleIdx::maxSystemDistance, Spatium(12));
+      // score->style().set(StyleIdx::hideEmptyStaves, true);
 
 #if 1
       foreach(CapSystem* csys, cap->systems) {
@@ -1185,7 +1195,7 @@ void convertCapella(Score* score, Capella* cap, bool capxMode)
                   bstaff->setBarLineSpan(span);
                   bstaff = 0;
                   }
-            s->setSmall(cl->bSmall);
+            s->setSmall(0, cl->bSmall);
             part->insertStaff(s, -1);
             Interval interval;
             // guess diatonic transposition from chromatic transposition for the instrument
@@ -1217,16 +1227,16 @@ void convertCapella(Score* score, Capella* cap, bool capxMode)
                         SimpleTextObj* to = static_cast<SimpleTextObj*>(o);
                         Text* s = new Text(score);
                         switch (to->textalign()) {
-                              case 0:   s->setTextStyleType(TextStyleType::POET);    break;
-                              case 1:   s->setTextStyleType(TextStyleType::TITLE); break;
-                              case 2:   s->setTextStyleType(TextStyleType::COMPOSER);   break;
-                              default:                                       break;
+                              case 0:   s->initSubStyle(SubStyle::POET);    break;
+                              case 1:   s->initSubStyle(SubStyle::TITLE);   break;
+                              case 2:   s->initSubStyle(SubStyle::COMPOSER); break;
+                              default:                                      break;
                               }
                         QFont f(to->font());
-                        s->textStyle().setItalic(f.italic());
+                        s->setItalic(f.italic());
                         // s->setUnderline(f.underline());
-                        s->textStyle().setBold(f.bold());
-                        s->textStyle().setSize(f.pointSizeF());
+                        s->setBold(f.bold());
+                        s->setSize(f.pointSizeF());
 
                         QString ss = to->text();
                         s->setPlainText(ss);
@@ -1248,7 +1258,7 @@ void convertCapella(Score* score, Capella* cap, bool capxMode)
       if (cap->topDist) {
             VBox* mb = 0;
             MeasureBaseList* mbl = score->measures();
-            if (mbl->size() && mbl->first()->type() == Element::Type::VBOX)
+            if (mbl->size() && mbl->first()->type() == ElementType::VBOX)
                   mb = static_cast<VBox*>(mbl->first());
             else {
                   VBox* vb = new VBox(score);

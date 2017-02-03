@@ -27,7 +27,6 @@
 #include "ui_insertmeasuresdialog.h"
 #include "ui_aboutbox.h"
 #include "ui_aboutmusicxmlbox.h"
-#include "ui_startdialog.h"
 #include "singleapp/src/QtSingleApplication"
 #include "updatechecker.h"
 #include "loginmanager.h"
@@ -58,7 +57,7 @@ class PaletteBox;
 class Palette;
 class PaletteScrollArea;
 class SelectionWindow;
-class Xml;
+class XmlWriter;
 class MagBox;
 class NewWizard;
 class ExcerptsDialog;
@@ -170,6 +169,8 @@ class AboutMusicXMLBoxDialog : public QDialog, Ui::AboutMusicXMLBox {
 class InsertMeasuresDialog : public QDialog, public Ui::InsertMeasuresDialogBase {
       Q_OBJECT
 
+      virtual void hideEvent(QHideEvent*);
+
    private slots:
       virtual void accept();
 
@@ -191,21 +192,6 @@ class MeasuresDialog : public QDialog, public Ui::MeasuresDialogBase {
       MeasuresDialog(QWidget* parent = 0);
       };
 
-
-//---------------------------------------------------------
-//   StartDialog
-//---------------------------------------------------------
-
-class StartDialog : public QDialog, public Ui::StartDialog {
-      Q_OBJECT
-
-   private slots:
-      void createScoreClicked();
-      void loadScoreClicked();
-
-   public:
-      StartDialog(QWidget* parent = 0);
-      };
 
 //---------------------------------------------------------
 //   MuseScoreApplication (mac only)
@@ -285,6 +271,7 @@ class MuseScore : public QMainWindow, public MuseScoreCore {
       QMenu* openRecent;
       QMenu* menuEdit;
       QMenu* menuView;
+      QMenu* menuToolbars;
       QMenu* menuWorkspaces;
 
       QMenu* menuAdd;
@@ -342,7 +329,6 @@ class MuseScore : public QMainWindow, public MuseScoreCore {
       void removeMenuEntry(PluginDescription*);
 
       QTimer* autoSaveTimer;
-      QList<QAction*> qmlPluginActions;
       QList<QAction*> pluginActions;
       QSignalMapper* pluginMapper        { 0 };
 
@@ -662,7 +648,6 @@ class MuseScore : public QMainWindow, public MuseScoreCore {
       bool saveMp3(Score*, const QString& name);
       bool saveSvg(Score*, const QString& name);
       bool savePng(Score*, const QString& name);
-//      bool saveLilypond(Score*, const QString& name);
       bool saveMidi(Score* score, const QString& name);
 
       virtual void closeScore(Score* score);
@@ -702,7 +687,7 @@ class MuseScore : public QMainWindow, public MuseScoreCore {
       static Palette* newNoteHeadsPalette();
       static Palette* newArticulationsPalette(PaletteType);
       static Palette* newOrnamentsPalette();
-      static Palette* newAkkordeonPalette();
+      static Palette* newAccordionPalette();
       static Palette* newBracketsPalette();
       static Palette* newBreathPalette();
       static Palette* newArpeggioPalette();
@@ -753,6 +738,8 @@ class MuseScore : public QMainWindow, public MuseScoreCore {
 
       void setNoteInputMenuEntries(std::list<const char*> l)         { _noteInputMenuEntries = l; }
       void populateNoteInputMenu();
+
+      void showError();
 
       static void saveGeometry(QWidget const*const qw);
       static void restoreGeometry(QWidget*const qw);

@@ -14,8 +14,7 @@
 #define __TUPLET_H__
 
 #include "duration.h"
-
-class QPainter;
+#include "property.h"
 
 namespace Ms {
 
@@ -29,13 +28,15 @@ class Spanner;
 //!       _actualNotes = 3
 //!       _normalNotes = 2     (3 notes played in the time of 2/8)
 //!
-//!    The tuplet has a len of _baseLen * _normalNotes.
+//!    The tuplet has a  len of _baseLen * _normalNotes.
 //!    A tuplet note has len of _baseLen * _normalNotes / _actualNotes.
 //------------------------------------------------------------------------
 
 class Tuplet : public DurationElement {
       Q_OBJECT
 
+      // the tick position of a tuplet is the tick position of its
+      // first element:
       int _tick;
 
    public:
@@ -48,9 +49,9 @@ class Tuplet : public DurationElement {
       Direction _direction;
       NumberType _numberType;
       BracketType _bracketType;
-      PropertyStyle directionStyle  { PropertyStyle::STYLED };
-      PropertyStyle numberStyle     { PropertyStyle::STYLED };
-      PropertyStyle bracketStyle    { PropertyStyle::STYLED };
+      PropertyFlags directionStyle  { PropertyFlags::STYLED };
+      PropertyFlags numberStyle     { PropertyFlags::STYLED };
+      PropertyFlags bracketStyle    { PropertyFlags::STYLED };
 
       bool _hasBracket;
 
@@ -72,7 +73,7 @@ class Tuplet : public DurationElement {
       Tuplet(const Tuplet&);
       ~Tuplet();
       virtual Tuplet* clone() const override      { return new Tuplet(*this); }
-      virtual Element::Type type() const override { return Element::Type::TUPLET; }
+      virtual ElementType type() const override { return ElementType::TUPLET; }
       virtual void setTrack(int val) override;
 
       virtual void add(Element*) override;
@@ -92,6 +93,7 @@ class Tuplet : public DurationElement {
       void setNumberType(NumberType val)   { _numberType = val;        }
       void setBracketType(BracketType val) { _bracketType = val;       }
       bool hasBracket() const              { return _hasBracket;       }
+      void setHasBracket(bool b)           { _hasBracket = b;          }
 
       Fraction ratio() const               { return _ratio;         }
       void setRatio(const Fraction& r)     { _ratio = r;            }
@@ -104,7 +106,8 @@ class Tuplet : public DurationElement {
       Text* number() const { return _number; }
 
       virtual void read(XmlReader&) override;
-      virtual void write(Xml&) const override;
+      virtual void write(XmlWriter&) const override;
+      virtual bool readProperties(XmlReader&) override;
 
       virtual void reset() override;
 
@@ -129,10 +132,11 @@ class Tuplet : public DurationElement {
       virtual QVariant getProperty(P_ID propertyId) const override;
       virtual bool setProperty(P_ID propertyId, const QVariant& v) override;
       virtual QVariant propertyDefault(P_ID id) const override;
-      virtual PropertyStyle propertyStyle(P_ID) const override;
+      virtual PropertyFlags propertyFlags(P_ID) const override;
       virtual void resetProperty(P_ID id) override;
       virtual void styleChanged() override;
       virtual StyleIdx getPropertyStyle(P_ID) const override;
+      void sanitizeTuplet();
       };
 
 

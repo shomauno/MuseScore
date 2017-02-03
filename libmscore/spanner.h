@@ -17,12 +17,7 @@
 
 namespace Ms {
 
-class Segment;
 class Spanner;
-class System;
-class Chord;
-class ChordRest;
-class Note;
 
 //---------------------------------------------------------
 //   SpannerSegmentType
@@ -132,6 +127,7 @@ class Spanner : public Element {
       int _tick              { -1 };
       int _ticks             {  0 };
       int _track2            { -1 };
+      bool _broken           { false };
 
       static QList<QPointF> userOffsets;
       static QList<QPointF> userOffsets2;
@@ -148,7 +144,7 @@ class Spanner : public Element {
       Spanner(const Spanner&);
       ~Spanner();
 
-      virtual Element::Type type() const = 0;
+      virtual ElementType type() const = 0;
       virtual void setScore(Score* s) override;
 
       virtual int tick() const override { return _tick;          }
@@ -159,8 +155,11 @@ class Spanner : public Element {
       void setTick2(int v);
       void setTicks(int v);
 
-      int track2() const       { return _track2;        }
-      void setTrack2(int v)    { _track2 = v;           }
+      int track2() const       { return _track2;   }
+      void setTrack2(int v)    { _track2 = v;      }
+
+      bool broken() const      { return _broken;   }
+      void setBroken(bool v)   { _broken = v;      }
 
       Anchor anchor() const    { return _anchor;   }
       void setAnchor(Anchor a) { _anchor = a;      }
@@ -218,9 +217,6 @@ class Spanner : public Element {
       virtual bool isSpanner() const override { return true; }
 
       friend class SpannerSegment;
-#ifndef NDEBUG
-      bool broken { false };
-#endif
       };
 
 }     // namespace Ms

@@ -59,13 +59,13 @@ class Marker : public Text {
       QString markerTypeUserName() const;
 
       virtual Marker* clone() const override      { return new Marker(*this); }
-      virtual Element::Type type() const override { return Element::Type::MARKER; }
+      virtual ElementType type() const override { return ElementType::MARKER; }
 
       Measure* measure() const         { return (Measure*)parent(); }
 
       virtual void layout() override;
       virtual void read(XmlReader&) override;
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter& xml) const override;
 
       QString label() const            { return _label; }
       void setLabel(const QString& s)  { _label = s; }

@@ -726,14 +726,6 @@
     <seq>Ctrl+G</seq>
     </SC>
   <SC>
-    <key>transpose-up</key>
-    <seq>F2</seq>
-    </SC>
-  <SC>
-    <key>transpose-down</key>
-    <seq>Shift+F2</seq>
-    </SC>
-  <SC>
     <key>masterpalette</key>
     <seq>Shift+F9</seq>
     </SC>
@@ -985,6 +977,10 @@
   <SC>
     <key>viewmode</key>
     <seq>Ctrl+Shift+V</seq>
+    </SC>
+  <SC>
+    <key>toggle-insert-mode</key>
+    <seq>Ctrl+I</seq>
     </SC>
 
   </Shortcuts>

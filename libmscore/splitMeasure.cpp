@@ -15,6 +15,7 @@
 #include "segment.h"
 #include "chordrest.h"
 #include "range.h"
+#include "tuplet.h"
 
 namespace Ms {
 
@@ -25,28 +26,36 @@ namespace Ms {
 void Score::cmdSplitMeasure(ChordRest* cr)
       {
       startCmd();
-      splitMeasure(cr);
+      splitMeasure(cr->segment());
       endCmd();
       }
 
 //---------------------------------------------------------
 //   splitMeasure
+//    return true on success
 //---------------------------------------------------------
 
-void Score::splitMeasure(ChordRest* cr)
+void Score::splitMeasure(Segment* segment)
       {
-      Segment* segment = cr->segment();
+      if (segment->rtick() == 0) {
+            MScore::setError(CANNOT_SPLIT_MEASURE_FIRST_BEAT);
+            return;
+            }
+      if (segment->splitsTuplet()) {
+            MScore::setError(CANNOT_SPLIT_MEASURE_TUPLET);
+            return;
+            }
       Measure* measure = segment->measure();
 
       ScoreRange range;
       range.read(measure->first(), measure->last());
 
       undoRemoveMeasures(measure, measure);
-      undoInsertTime(measure->tick(), -(measure->endTick() - measure->tick()));
+      undoInsertTime(measure->tick(), -measure->ticks());
 
       // create empty measures:
-      Measure* m2 = toMeasure(insertMeasure(Element::Type::MEASURE, measure->next(), true));
-      Measure* m1 = toMeasure(insertMeasure(Element::Type::MEASURE, m2, true));
+      Measure* m2 = toMeasure(insertMeasure(ElementType::MEASURE, measure->next(), true));
+      Measure* m1 = toMeasure(insertMeasure(ElementType::MEASURE, m2, true));
 
       int tick = segment->tick();
       m1->setTick(measure->tick());
@@ -59,6 +68,5 @@ void Score::splitMeasure(ChordRest* cr)
       m2->adjustToLen(Fraction::fromTicks(ticks2));
       range.write(this, m1->tick());
       }
-
 }
 

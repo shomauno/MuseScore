@@ -20,9 +20,8 @@ namespace Ms {
 //---------------------------------------------------------
 
 RehearsalMark::RehearsalMark(Score* s)
-   : Text(s)
+   : Text(SubStyle::REHEARSAL_MARK, s)
       {
-      setTextStyleType(TextStyleType::REHEARSAL_MARK);
       }
 
 //---------------------------------------------------------
@@ -33,17 +32,18 @@ void RehearsalMark::layout()
       {
       if (autoplace())
             setUserOff(QPointF());
-      setPos(textStyle().offset(spatium()));
+//      setPos(textStyle().offset(spatium()));
+      setPos(QPointF());
       Text::layout1();
       Segment* s = segment();
       if (s) {
             if (!s->rtick()) {
                   // first CR of measure, decide whether to align to barline
-                  if (!s->prev() && align() & AlignmentFlags::CENTER) {
+                  if (!s->prev() && align() & Align::CENTER) {
                         // measure with no clef / keysig / timesig
                         rxpos() -= s->x();
                         }
-                  else if (align() & AlignmentFlags::RIGHT) {
+                  else if (align() & Align::RIGHT) {
                         // measure with clef / keysig / timesig, rehearsal mark right aligned
                         // align left edge of rehearsal to barline if that is further to left
                         qreal leftX = bbox().x();
@@ -58,6 +58,20 @@ void RehearsalMark::layout()
                   if (d > 0)
                         setUserOff(QPointF(0.0, -d));
                   }
+            }
+      }
+
+//---------------------------------------------------------
+//   propertyDefault
+//---------------------------------------------------------
+
+QVariant RehearsalMark::propertyDefault(P_ID id) const
+      {
+      switch (id) {
+            case P_ID::SUB_STYLE:
+                  return int(SubStyle::REHEARSAL_MARK);
+            default:
+                  return Text::propertyDefault(id);
             }
       }
 

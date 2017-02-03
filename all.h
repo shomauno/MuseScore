@@ -21,6 +21,12 @@
 #ifndef __ALLQT_H__
 #define __ALLQT_H__
 
+#ifndef NDEBUG
+#define ABORTN(n) { static int k = 0; ++k; if (k == n) abort(); }
+#else
+#define ABORTN(a)
+#endif
+
 #include <stdio.h>
 #include <limits.h>
 #include <map>
@@ -29,6 +35,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <math.h>
+#include <array>
 
 #include <QtGui>
 #include <QLoggingCategory>

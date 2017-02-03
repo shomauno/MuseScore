@@ -26,6 +26,7 @@
 #include "chord.h"
 #include "key.h"
 #include "sig.h"
+#include "tuplet.h"
 
 namespace Ms {
 
@@ -46,8 +47,8 @@ Measure* Score::tick2measure(int tick) const
       {
       if (tick == -1)
             return lastMeasure();
-      Measure* lm = 0;
 
+      Measure* lm = 0;
       for (Measure* m = firstMeasure(); m; m = m->nextMeasure()) {
             if (tick < m->tick())
                   return lm;
@@ -156,7 +157,7 @@ Segment* Score::tick2segmentEnd(int track, int tick) const
             if (!cr)
                   continue;
             // TODO LVI: check if following is correct, see exceptions in
-            // ExportMusicXml::chord() and ExportMusicXml::rest()
+            // ExportMusicXmlchord() and ExportMusicXmlrest()
             int endTick = cr->tick() + cr->actualTicks();
             if (endTick < tick)
                   continue; // not found yet
@@ -439,48 +440,6 @@ int quantizeLen(int len, int raster)
       if (raster == 0)
             return len;
       return int( ((float)len/raster) + 0.5 ) * raster; //round to the closest multiple of raster
-      }
-
-//---------------------------------------------------------
-//   selectNoteMessage
-//---------------------------------------------------------
-
-void selectNoteMessage()
-      {
-      if (!MScore::noGui)
-            QMessageBox::information(0,
-               QMessageBox::tr("MuseScore"),
-               QMessageBox::tr("No note selected:\n"
-                               "Please select a single note and retry operation\n"),
-               QMessageBox::Ok, QMessageBox::NoButton);
-      }
-
-void selectNoteRestMessage()
-      {
-      if (!MScore::noGui)
-            QMessageBox::information(0,
-               QMessageBox::tr("MuseScore"),
-               QMessageBox::tr("No note or rest selected:\n"
-                               "Please select a single note or rest and retry operation\n"),
-               QMessageBox::Ok, QMessageBox::NoButton);
-      }
-
-void selectNoteSlurMessage()
-      {
-      if (!MScore::noGui)
-            QMessageBox::information(0,
-               QMessageBox::tr("MuseScore"),
-               QMessageBox::tr("Please select a single note or slur and retry operation\n"),
-               QMessageBox::Ok, QMessageBox::NoButton);
-      }
-
-void selectStavesMessage()
-      {
-      if (!MScore::noGui)
-            QMessageBox::information(0,
-               QMessageBox::tr("MuseScore"),
-               QMessageBox::tr("Please select one or more staves and retry operation\n"),
-               QMessageBox::Ok, QMessageBox::NoButton);
       }
 
 static const char* vall[] = {
@@ -962,5 +921,20 @@ int step2pitch(int step)
       return tab[step % 7];
       }
 
+//---------------------------------------------------------
+//   skipTuplet
+//    return segment of rightmost chord/rest in a
+//    (possible nested) tuplet
+//---------------------------------------------------------
+
+Segment* skipTuplet(Tuplet* tuplet)
+      {
+      DurationElement* nde = tuplet->elements().back();
+      while (nde->isTuplet()) {
+            tuplet = toTuplet(nde);
+            nde = tuplet->elements().back();
+            }
+      return toChordRest(nde)->segment();
+      }
 }
 

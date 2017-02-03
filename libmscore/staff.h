@@ -23,15 +23,14 @@
 #include "pitch.h"
 #include "cleflist.h"
 #include "keylist.h"
-#include "stafftype.h"
+#include "stafftypelist.h"
 #include "groups.h"
 #include "scoreElement.h"
-#include "excerpt.h"
 
 namespace Ms {
 
 class InstrumentTemplate;
-class Xml;
+class XmlWriter;
 class Part;
 class Score;
 class KeyList;
@@ -93,7 +92,7 @@ struct SwingParameters {
 ///    Global staff data not directly related to drawing.
 //---------------------------------------------------------
 
-class Staff : public QObject, public ScoreElement {
+class Staff : public ScoreElement {
       Q_OBJECT
 
    public:
@@ -101,7 +100,6 @@ class Staff : public QObject, public ScoreElement {
 
    private:
       Part* _part       { 0 };
-      Excerpt* _excerpt { 0 };
 
       ClefList clefs;
       ClefTypeList _defaultClefType;
@@ -110,22 +108,22 @@ class Staff : public QObject, public ScoreElement {
       std::map<int,TimeSig*> timesigs;
 
       QList <BracketItem> _brackets;
-      int _barLineSpan   { 1     };    ///< 0 - no bar line, 1 - span this staff, ...
-      int _barLineFrom   { 0     };    ///< line of start staff to draw the barline from (0 = staff top line, ...)
-      int _barLineTo;                  ///< line of end staff to draw the bar line to (0= staff top line, ...)
-      bool _small        { false };
-      bool _invisible    { false };
-      bool _cutaway      { false };
-      bool _showIfEmpty  { false };    ///< show this staff if system is empty and hideEmptyStaves is true
-      bool _hideSystemBarLine  { false }; // no system barline if not preceeded by staff with barline
+      bool _barLineSpan        { false };    ///< true - span barline to next staff
+      int _barLineFrom         { 0     };    ///< line of start staff to draw the barline from (0 = staff top line, ...)
+      int _barLineTo           { 0     };    ///< line of end staff to draw the bar line to (0= staff bottom line, ...)
+
+      bool _invisible          { false };
+      bool _cutaway            { false };
+      bool _showIfEmpty        { false };       ///< show this staff if system is empty and hideEmptyStaves is true
+      bool _hideSystemBarLine  { false };       // no system barline if not preceeded by staff with barline
       HideMode _hideWhenEmpty  { HideMode::AUTO };    // hide empty staves
 
-      QColor _color      { MScore::defaultColor };
-      qreal _userDist    { 0.0   };        ///< user edited extra distance
-      qreal _userMag     { 1.0   };             // allowed 0.1 - 10.0
+      QColor _color            { MScore::defaultColor };
+      qreal _userDist          { 0.0   };       ///< user edited extra distance
 
-      StaffType _staffType;
-      LinkedStaves* _linkedStaves { nullptr };
+      StaffTypeList _staffTypeList;
+
+      LinkedStaves* _linkedStaves { 0 };
       QMap<int,int> _channelList[VOICES];
       QMap<int,SwingParameters> _swingList;
       bool _playbackVoice[VOICES] { true, true, true, true };
@@ -136,29 +134,28 @@ class Staff : public QObject, public ScoreElement {
       void scaleChanged(double oldValue, double newValue);
 
    public:
-      Staff(Score* = 0);
+      Staff(Score* score = 0) : ScoreElement(score) {}
       ~Staff();
       void init(const InstrumentTemplate*, const StaffType *staffType, int);
       void initFromStaffType(const StaffType* staffType);
       void init(const Staff*);
 
-      virtual const char* name() const override { return "Staff"; }
+      virtual ElementType type() const override { return ElementType::STAFF; }
 
       bool isTop() const;
       QString partName() const;
       int rstaff() const;
       int idx() const;
       void read(XmlReader&);
-      void write(Xml& xml) const;
+      bool readProperties(XmlReader&);
+      void write(XmlWriter& xml) const;
       Part* part() const             { return _part;        }
       void setPart(Part* p)          { _part = p;           }
-
-      Excerpt* excerpt() const       { return _excerpt;     }
-      void setExcerpt(Excerpt* e)    { _excerpt = e;        }
 
       BracketType bracket(int idx) const;
       int bracketSpan(int idx) const;
       void setBracket(int idx, BracketType val);
+      void swapBracket(int oldIdx, int newIdx);
       void setBracketSpan(int idx, int val);
       int bracketLevels() const      { return _brackets.size(); }
       void addBracket(BracketItem);
@@ -170,6 +167,7 @@ class Staff : public QObject, public ScoreElement {
       ClefTypeList defaultClefType() const           { return _defaultClefType; }
       void setDefaultClefType(const ClefTypeList& l) { _defaultClefType = l; }
       ClefType clef(int tick) const;
+      int nextClefTick(int tick) const;
 
       void setClef(Clef*);
       void removeClef(Clef*);
@@ -193,9 +191,7 @@ class Staff : public QObject, public ScoreElement {
       void removeKey(int tick);
 
       bool show() const;
-      bool slashStyle() const;
-      bool small() const             { return _small;       }
-      void setSmall(bool val)        { _small = val;        }
+      bool slashStyle(int tick) const;
       bool invisible() const         { return _invisible;   }
       void setInvisible(bool val)    { _invisible = val;    }
       bool cutaway() const           { return _cutaway;     }
@@ -208,36 +204,43 @@ class Staff : public QObject, public ScoreElement {
       HideMode hideWhenEmpty() const      { return _hideWhenEmpty;     }
       void setHideWhenEmpty(HideMode v)   { _hideWhenEmpty = v;        }
 
-      void setSlashStyle(bool val);
-      int lines() const;
-      void setLines(int);
-      qreal lineDistance() const;
-      qreal logicalLineDistance() const;
-      bool scaleNotesToLines() const;
-      int middleLine() const;
-      int bottomLine() const;
-      int barLineSpan() const        { return _barLineSpan; }
+      bool barLineSpan() const       { return _barLineSpan; }
       int barLineFrom() const        { return _barLineFrom; }
       int barLineTo() const          { return _barLineTo;   }
-      void setBarLineSpan(int val)   { _barLineSpan = val;  }
+      void setBarLineSpan(bool val)  { _barLineSpan = val;  }
       void setBarLineFrom(int val)   { _barLineFrom = val;  }
-      void setBarLineTo(int val);
-      qreal mag() const;
+      void setBarLineTo(int val)     { _barLineTo = val;    }
       qreal height() const;
-      qreal spatium() const;
       int channel(int tick, int voice) const;
       QMap<int,int>* channelList(int voice) { return  &_channelList[voice]; }
       SwingParameters swing(int tick)  const;
       QMap<int,SwingParameters>* swingList() { return &_swingList; }
 
-      const StaffType* staffType() const { return &_staffType;      }
-      StaffType* staffType()             { return &_staffType;      }
+      //==== staff type
+      const StaffType* staffType(int tick) const;
+      StaffType* staffType(int tick);
+      StaffType* setStaffType(int tick, const StaffType*);
+      void staffTypeListChanged(int tick);
 
-      void setStaffType(const StaffType* st);
-      StaffGroup staffGroup() const    { return _staffType.group(); }
-      bool isPitchedStaff() const      { return staffGroup() == StaffGroup::STANDARD; }
-      bool isTabStaff() const          { return staffGroup() == StaffGroup::TAB; }
-      bool isDrumStaff() const         { return staffGroup() == StaffGroup::PERCUSSION; }
+      bool isPitchedStaff(int tick) const;
+      bool isTabStaff(int tick) const;
+      bool isDrumStaff(int tick) const;
+
+      int lines(int tick) const;
+      void setLines(int tick, int lines);
+      qreal lineDistance(int tick) const;
+
+      void setSlashStyle(int tick, bool val);
+      int middleLine(int tick) const;
+      int bottomLine(int tick) const;
+
+      qreal userMag(int tick) const;
+      void setUserMag(int tick, qreal m);
+      qreal mag(int tick) const;
+      bool small(int tick) const;
+      void setSmall(int tick, bool val);
+      qreal spatium(int tick) const;
+      //===========
 
       VeloList& velocities()           { return _velocities;     }
       PitchList& pitchOffsets()        { return _pitchOffsets;   }
@@ -255,12 +258,10 @@ class Staff : public QObject, public ScoreElement {
 
       qreal userDist() const        { return _userDist;  }
       void setUserDist(qreal val)   { _userDist = val;   }
-      qreal userMag() const         { return _userMag;   }
-      void setUserMag(qreal m)      { _userMag = m;      }
 
       void spatiumChanged(qreal /*oldValue*/, qreal /*newValue*/);
       bool genKeySig();
-      bool showLedgerLines();
+      bool showLedgerLines(int tick);
 
       QColor color() const                { return _color; }
       void setColor(const QColor& val)    { _color = val;    }

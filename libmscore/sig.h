@@ -14,11 +14,10 @@
 #define __AL_SIG_H__
 
 #include "fraction.h"
-#include "mscore.h"
 
 namespace Ms {
 
-class Xml;
+class XmlWriter;
 class XmlReader;
 
 //-------------------------------------------------------------------
@@ -54,7 +53,7 @@ class TimeSigFrac : public Fraction {
       // However, the meter is still considered to be compound (at least for our purposes).
       bool isBeatedCompound(qreal tempo) const { return tempo2beatsPerMinute(tempo) >= 60.0; }
 
-      int dUnitTicks()        const   { return (4 * MScore::division) / denominator(); }
+      int dUnitTicks()        const;
       int ticksPerMeasure()   const   { return numerator() * dUnitTicks(); }
 
       int dUnitsPerBeat()     const   { return isCompound() ? 3 : 1; }
@@ -100,7 +99,7 @@ class SigEvent {
 
    public:
       int read(XmlReader&, int fileDivision);
-      void write(Xml&, int) const;
+      void write(XmlWriter&, int) const;
 
       constexpr SigEvent() : _bar(0) {}       ///< default SigEvent is invalid
       SigEvent(const Fraction& s, int bar = 0)
@@ -135,7 +134,7 @@ class TimeSigMap : public std::map<int, SigEvent > {
       void del(int tick);
 
       void read(XmlReader&, int fileDiv);
-      void write(Xml&) const;
+      void write(XmlWriter&) const;
       void dump() const;
 
       const SigEvent& timesig(int tick) const;

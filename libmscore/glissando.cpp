@@ -51,7 +51,7 @@ static const qreal      GLISS_PALETTE_HEIGHT          = 4.0;
 void GlissandoSegment::layout()
       {
       if (staff())
-            setMag(staff()->mag());
+            setMag(staff()->mag(tick()));
       QRectF r = QRectF(0.0, 0.0, pos2().x(), pos2().y()).normalized();
       qreal lw = spatium() * glissando()->lineWidth().val() * .5;
       setbbox(r.adjusted(-lw, -lw, lw, lw));
@@ -65,7 +65,7 @@ void GlissandoSegment::layout()
 void GlissandoSegment::draw(QPainter* painter) const
       {
       painter->save();
-      qreal _spatium = spatium();
+      //qreal _spatium = spatium();
 
       QPen pen(glissando()->curColor());
       pen.setWidthF(glissando()->lineWidth().val() * spatium());
@@ -98,8 +98,9 @@ void GlissandoSegment::draw(QPainter* painter) const
             score()->scoreFont()->draw(ids, painter, magS(), QPointF(x, -(b.y() + b.height()*0.5) ), scale);
 //            MScore::pdfPrinting = tmp;
             }
+#if 0 // TODO
       if (glissando()->showText()) {
-            const TextStyle& st = score()->textStyle(TextStyleType::GLISSANDO);
+            const TextStyle& st = score()->textStyle(StyledPropertyListIdx::GLISSANDO);
             QRectF r = st.fontMetrics(_spatium).boundingRect(glissando()->text());
             // if text longer than available space, skip it
             if (r.width() < l) {
@@ -111,6 +112,7 @@ void GlissandoSegment::draw(QPainter* painter) const
                   painter->drawText(QPointF(x, -yOffset), glissando()->text());
                   }
             }
+#endif
       painter->restore();
       }
 
@@ -220,7 +222,7 @@ void Glissando::scanElements(void* data, void (*func)(void*, Element*), bool all
       func(data, this);
       // don't scan segments belonging to systems; the systems themselves will scan them
       for (SpannerSegment* seg : segments)
-            if (!seg->parent() || seg->parent()->type() != Element::Type::SYSTEM)
+            if (!seg->parent() || seg->parent()->type() != ElementType::SYSTEM)
                   seg->scanElements(data, func, all);
       }
 
@@ -269,8 +271,8 @@ void Glissando::layout()
       int         upDown      = (0 < (anchor2->pitch() - anchor1->pitch())) - ((anchor2->pitch() - anchor1->pitch()) < 0);
       // on TAB's, glissando are by necessity on the same string, this gives an horizontal glissando line;
       // make bottom end point lower and top ending point higher
-      if (cr1->staff()->isTabStaff()) {
-                  qreal yOff = cr1->staff()->lineDistance() * 0.4 * _spatium;
+      if (cr1->staff()->isTabStaff(cr1->tick())) {
+                  qreal yOff = cr1->staff()->lineDistance(cr1->tick()) * 0.4 * _spatium;
                   offs1.ry() += yOff * upDown;
                   offs2.ry() -= yOff * upDown;
             }
@@ -375,7 +377,7 @@ void Glissando::layout()
 //   write
 //---------------------------------------------------------
 
-void Glissando::write(Xml& xml) const
+void Glissando::write(XmlWriter& xml) const
       {
       if (!xml.canWrite(this))
             return;
@@ -425,10 +427,10 @@ void Glissando::read(XmlReader& e)
 void Glissando::computeStartElement()
       {
       // if there is already a start note, done.
-      if (_startElement != nullptr && _startElement->type() == Element::Type::NOTE)
+      if (_startElement != nullptr && _startElement->type() == ElementType::NOTE)
             return;
       // if neither a start note or an end note, we got a problem!
-      if (_endElement == nullptr || _endElement->type() != Element::Type::NOTE) {
+      if (_endElement == nullptr || _endElement->type() != ElementType::NOTE) {
             // TODO: no start, no end: we probably should delete this glissando or just abort() ?
             return;
             }
@@ -443,14 +445,14 @@ void Glissando::computeStartElement()
             // if previous segment is a ChordRest segment
             if (segm->segmentType() == Segment::Type::ChordRest) {
                   // look for a Chord in the same track and get its top note, if found
-                  if (segm->element(trk) && segm->element(trk)->type() == Element::Type::CHORD) {
+                  if (segm->element(trk) && segm->element(trk)->type() == ElementType::CHORD) {
                         _startElement = static_cast<Chord*>(segm->element(trk))->upNote();
                         _startElement->add(this);
                         return;
                         }
                   // if no chord, look for other chords in the same instrument
                   for (Element* currChord : segm->elist())
-                        if (currChord != nullptr && currChord->type() == Element::Type::CHORD
+                        if (currChord != nullptr && currChord->type() == ElementType::CHORD
                                     && static_cast<Chord*>(currChord)->part() == part) {
                               _startElement = static_cast<Chord*>(currChord->upNote();
                               _startElement->add(this);
@@ -516,7 +518,7 @@ Note* Glissando::guessInitialNote(Chord* chord)
             case NoteType::GRACE16:
             case NoteType::GRACE32:
                   // move unto parent chord and proceed to standard case
-                  if (chord->parent() && chord->parent()->type() == Element::Type::CHORD)
+                  if (chord->parent() && chord->parent()->type() == ElementType::CHORD)
                         chord = static_cast<Chord*>(chord->parent());
                   else
                         return nullptr;
@@ -525,7 +527,7 @@ Note* Glissando::guessInitialNote(Chord* chord)
             case NoteType::GRACE8_AFTER:
             case NoteType::GRACE16_AFTER:
             case NoteType::GRACE32_AFTER:
-                  if (chord->parent() && chord->parent()->type() == Element::Type::CHORD)
+                  if (chord->parent() && chord->parent()->type() == ElementType::CHORD)
                         return static_cast<Chord*>(chord->parent())->upNote();
                   else                          // no parent or parent is not a chord?
                         return nullptr;
@@ -544,7 +546,7 @@ Note* Glissando::guessInitialNote(Chord* chord)
       // standard case (NORMAL or grace before chord)
 
       // if parent not a segment, can't locate a target note
-      if (chord->parent()->type() != Element::Type::SEGMENT)
+      if (chord->parent()->type() != ElementType::SEGMENT)
             return nullptr;
 
       int         chordTrack  = chord->track();
@@ -557,11 +559,11 @@ Note* Glissando::guessInitialNote(Chord* chord)
             if (segm->segmentType() == Segment::Type::ChordRest) {
                   Chord* target = nullptr;
                   // look for a Chord in the same track
-                  if (segm->element(chordTrack) && segm->element(chordTrack)->type() == Element::Type::CHORD)
+                  if (segm->element(chordTrack) && segm->element(chordTrack)->type() == ElementType::CHORD)
                         target = static_cast<Chord*>(segm->element(chordTrack));
                   else              // if no same track, look for other chords in the same instrument
                         for (Element* currChord : segm->elist())
-                              if (currChord != nullptr && currChord->type() == Element::Type::CHORD
+                              if (currChord != nullptr && currChord->type() == ElementType::CHORD
                                           && static_cast<Chord*>(currChord)->part() == part) {
                                     target = static_cast<Chord*>(currChord);
                                     break;
@@ -607,7 +609,7 @@ Note* Glissando::guessFinalNote(Chord* chord)
             case NoteType::GRACE4:
             case NoteType::GRACE16:
             case NoteType::GRACE32:
-                  if (chord->parent() && chord->parent()->type() == Element::Type::CHORD)
+                  if (chord->parent() && chord->parent()->type() == ElementType::CHORD)
                         return static_cast<Chord*>(chord->parent())->upNote();
                   else                          // no parent or parent is not a chord?
                         return nullptr;
@@ -617,7 +619,7 @@ Note* Glissando::guessFinalNote(Chord* chord)
             case NoteType::GRACE16_AFTER:
             case NoteType::GRACE32_AFTER:
                   // move unto parent chord and proceed to standard case
-                  if (chord->parent() && chord->parent()->type() == Element::Type::CHORD)
+                  if (chord->parent() && chord->parent()->type() == ElementType::CHORD)
                         chord = static_cast<Chord*>(chord->parent());
                   else
                         return nullptr;
@@ -637,7 +639,7 @@ Note* Glissando::guessFinalNote(Chord* chord)
       // standard case (NORMAL or grace after chord)
 
       // if parent not a segment, can't locate a target note
-      if (chord->parent()->type() != Element::Type::SEGMENT)
+      if (chord->parent()->type() != ElementType::SEGMENT)
             return nullptr;
 
       // look for first ChordRest segment after initial note is elapsed
@@ -650,11 +652,11 @@ Note* Glissando::guessFinalNote(Chord* chord)
                   Chord* target = nullptr;
 
                   // look for a Chord in the same track
-                  if (segm->element(chordTrack) && segm->element(chordTrack)->type() == Element::Type::CHORD)
+                  if (segm->element(chordTrack) && segm->element(chordTrack)->type() == ElementType::CHORD)
                         target = static_cast<Chord*>(segm->element(chordTrack));
                   else              // if no same track, look for other chords in the same instrument
                         for (Element* currChord : segm->elist())
-                              if (currChord != nullptr && currChord->type() == Element::Type::CHORD
+                              if (currChord != nullptr && currChord->type() == ElementType::CHORD
                                           && static_cast<Chord*>(currChord)->part() == part) {
                                     target = static_cast<Chord*>(currChord);
                                     break;

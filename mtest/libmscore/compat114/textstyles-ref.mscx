@@ -1956,16 +1956,6 @@
     <metaTag name="translator"></metaTag>
     <metaTag name="workNumber"></metaTag>
     <metaTag name="workTitle"></metaTag>
-    <PageList>
-      <Page>
-        <System>
-          </System>
-        <System>
-          </System>
-        <System>
-          </System>
-        </Page>
-      </PageList>
     <Part>
       <Staff id="1">
         <StaffType group="pitched">
@@ -2219,8 +2209,6 @@
           <duration>4/4</duration>
           </Rest>
         <BarLine>
-          <subtype>end</subtype>
-          <span>1</span>
           </BarLine>
         </Measure>
       </Staff>

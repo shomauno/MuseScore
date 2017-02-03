@@ -40,7 +40,7 @@ InspectorAmbitus::InspectorAmbitus(QWidget* parent)
             NoteHead::Group::HEAD_NORMAL,
             NoteHead::Group::HEAD_CROSS,
             NoteHead::Group::HEAD_DIAMOND,
-            NoteHead::Group::HEAD_TRIANGLE,
+            NoteHead::Group::HEAD_TRIANGLE_DOWN,
             NoteHead::Group::HEAD_SLASH,
             NoteHead::Group::HEAD_XCIRCLE,
             NoteHead::Group::HEAD_DO,
@@ -98,7 +98,9 @@ InspectorAmbitus::InspectorAmbitus(QWidget* parent)
             { P_ID::LEADING_SPACE,  0, 1, s.leadingSpace,  s.resetLeadingSpace  },
             };
 
-      mapSignals(iiList);
+      const std::vector<InspectorPanel> ppList = { { r.title, r.panel }, { s.title, s.panel } };
+
+      mapSignals(iiList, ppList);
       connect(r.updateRange, SIGNAL(clicked()), this, SLOT(updateRange()) );
       }
 

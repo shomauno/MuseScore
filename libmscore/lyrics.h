@@ -72,7 +72,7 @@ class Lyrics : public Text {
                               ///< (melisma)
       Syllabic _syllabic;
       LyricsLine* _separator;
-      PropertyStyle placementStyle;
+      PropertyFlags placementStyle;
 
    protected:
       int _no;                ///< row index
@@ -89,7 +89,7 @@ class Lyrics : public Text {
       Lyrics(const Lyrics&);
       ~Lyrics();
       virtual Lyrics* clone() const override          { return new Lyrics(*this); }
-      virtual Element::Type type() const override     { return Element::Type::LYRICS; }
+      virtual ElementType type() const override     { return ElementType::LYRICS; }
       virtual void scanElements(void* data, void (*func)(void*, Element*), bool all=true) override;
       virtual bool acceptDrop(const DropData&) const override;
       virtual Element* drop(const DropData&) override;
@@ -101,7 +101,7 @@ class Lyrics : public Text {
       virtual void layout() override;
       virtual void layout1() override;
 
-      virtual void write(Xml& xml) const override;
+      virtual void write(XmlWriter& xml) const override;
       virtual void read(XmlReader&) override;
       virtual int subtype() const override            { return _no; }
       virtual QString subtypeName() const override    { return tr("Verse %1").arg(_no + 1); }
@@ -133,7 +133,7 @@ class Lyrics : public Text {
       virtual QVariant getProperty(P_ID propertyId) const override;
       virtual bool setProperty(P_ID propertyId, const QVariant&) override;
       virtual QVariant propertyDefault(P_ID id) const override;
-      virtual PropertyStyle propertyStyle(P_ID) const override;
+      virtual PropertyFlags propertyFlags(P_ID) const override;
       virtual StyleIdx getPropertyStyle(P_ID) const override;
       virtual void reset() override;
       virtual void styleChanged() override;
@@ -155,7 +155,7 @@ class LyricsLine : public SLine {
       LyricsLine(const LyricsLine&);
 
       virtual LyricsLine* clone() const override      { return new LyricsLine(*this); }
-      virtual Element::Type type() const override     { return Element::Type::LYRICSLINE; }
+      virtual ElementType type() const override     { return ElementType::LYRICSLINE; }
       virtual void layout() override;
       virtual LineSegment* createLineSegment() override;
       virtual void removeUnmanaged() override;
@@ -180,7 +180,7 @@ public:
       LyricsLineSegment(Score* s);
 
       virtual LyricsLineSegment* clone() const override     { return new LyricsLineSegment(*this); }
-      virtual Element::Type type() const override           { return Element::Type::LYRICSLINE_SEGMENT; }
+      virtual ElementType type() const override           { return ElementType::LYRICSLINE_SEGMENT; }
       virtual void draw(QPainter*) const override;
       virtual void layout() override;
       LyricsLine* lyricsLine() const                        { return (LyricsLine*)spanner(); }

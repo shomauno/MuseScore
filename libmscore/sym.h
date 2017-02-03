@@ -18,9 +18,6 @@
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
-class QPainter;
-
-
 namespace Ms {
 
 class TextStyle;
@@ -2641,7 +2638,9 @@ enum class SymId {
       cClefFrench20C,
       fClefFrench,
       fClef19thCentury,
-      
+      braceSmall,
+      braceLarge,
+      braceLarger,
 
 //    MuseScore local symbols, precomposed symbols to mimic some emmentaler glyphs
 
@@ -2723,11 +2722,12 @@ class Sym {
       static SymId oldName2id(const QString s)   { return lonhash.value(s, SymId::noSym);}
       static const char* id2name(SymId id);
 
-      static QString id2userName(SymId id)       { return qApp->translate("symUserNames", symUserNames[int(id)].toUtf8().data()); }
+      static QString id2userName(SymId id)       { return qApp->translate("symUserNames", symUserNames[int(id)]); }
       static SymId userName2id(const QString& s);
 
-      static QVector<const char*> symNames;
-      static QVector<QString> symUserNames;
+      static const std::array<const char*, int (SymId::lastSym)+1> symNames;
+      static const std::array<const char*, int(SymId::lastSym)+1> symUserNames;
+
       static QHash<QString, SymId> lnhash;
       static QHash<QString, SymId> lonhash;
       friend class ScoreFont;

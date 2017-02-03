@@ -67,7 +67,7 @@ KeySig::KeySig(const KeySig& k)
 
 qreal KeySig::mag() const
       {
-      return staff() ? staff()->mag() : 1.0;
+      return staff() ? staff()->mag(tick()) : 1.0;
       }
 
 //---------------------------------------------------------
@@ -76,7 +76,7 @@ qreal KeySig::mag() const
 
 void KeySig::addLayout(SymId sym, qreal x, int line)
       {
-      qreal stepDistance = staff() ? staff()->logicalLineDistance() * 0.5 : 0.5;
+      qreal stepDistance = staff() ? staff()->lineDistance(tick()) * 0.5 : 0.5;
       KeySym ks;
       ks.sym    = sym;
       ks.spos   = QPointF(x, qreal(line) * stepDistance);
@@ -269,7 +269,7 @@ void KeySig::draw(QPainter* p) const
 
 bool KeySig::acceptDrop(const DropData& data) const
       {
-      return data.element->type() == Element::Type::KEYSIG;
+      return data.element->type() == ElementType::KEYSIG;
       }
 
 //---------------------------------------------------------
@@ -279,7 +279,7 @@ bool KeySig::acceptDrop(const DropData& data) const
 Element* KeySig::drop(const DropData& data)
       {
       KeySig* ks = static_cast<KeySig*>(data.element);
-      if (ks->type() != Element::Type::KEYSIG) {
+      if (ks->type() != ElementType::KEYSIG) {
             delete ks;
             return 0;
             }
@@ -313,7 +313,7 @@ void KeySig::setKey(Key key)
 //   write
 //---------------------------------------------------------
 
-void KeySig::write(Xml& xml) const
+void KeySig::write(XmlWriter& xml) const
       {
       xml.stag(name());
       Element::writeProperties(xml);

@@ -71,6 +71,60 @@ static Acc accList[] = {
       Acc(AccidentalVal::NATURAL, 0,    SymId::accidentalKucukMucennebSharp), // SHARP_SLASH3
       Acc(AccidentalVal::NATURAL, 0,    SymId::accidentalBuyukMucennebSharp), // SHARP_SLASH2
 
+      // Extended Helmholtz-Ellis accidentals (just intonation)
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleFlatOneArrowDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalFlatOneArrowDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalNaturalOneArrowDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalSharpOneArrowDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleSharpOneArrowDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleFlatOneArrowUp),
+
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalFlatOneArrowUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalNaturalOneArrowUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalSharpOneArrowUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleSharpOneArrowUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleFlatTwoArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalFlatTwoArrowsDown),
+
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalNaturalTwoArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalSharpTwoArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleSharpTwoArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleFlatTwoArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalFlatTwoArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalNaturalTwoArrowsUp),
+
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalSharpTwoArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleSharpTwoArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleFlatThreeArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalFlatThreeArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalNaturalThreeArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalSharpThreeArrowsDown),
+
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleSharpThreeArrowsDown),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleFlatThreeArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalFlatThreeArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalNaturalThreeArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalSharpThreeArrowsUp),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleSharpThreeArrowsUp),
+
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalLowerOneSeptimalComma),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalRaiseOneSeptimalComma),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalLowerTwoSeptimalCommas),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalRaiseTwoSeptimalCommas),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalLowerOneUndecimalQuartertone),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalRaiseOneUndecimalQuartertone),
+
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalLowerOneTridecimalQuartertone),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalRaiseOneTridecimalQuartertone),
+
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleFlatEqualTempered),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalFlatEqualTempered),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalNaturalEqualTempered),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalSharpEqualTempered),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalDoubleSharpEqualTempered),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalQuarterFlatEqualTempered),
+      Acc(AccidentalVal::NATURAL,    0,    SymId::accidentalQuarterSharpEqualTempered),
+
       // Persian
       Acc(AccidentalVal::NATURAL, 50,   SymId::accidentalSori),                          // SORI
       Acc(AccidentalVal::NATURAL, -50,  SymId::accidentalKoron),                         // KORON
@@ -84,10 +138,6 @@ Accidental::Accidental(Score* s)
    : Element(s)
       {
       setFlags(ElementFlag::MOVABLE | ElementFlag::SELECTABLE);
-      _hasBracket     = false;
-      _role           = AccidentalRole::AUTO;
-      _small          = false;
-      _accidentalType = AccidentalType::NONE;
       }
 
 //---------------------------------------------------------
@@ -100,8 +150,8 @@ void Accidental::read(XmlReader& e)
             const QStringRef& tag(e.name());
             if (tag == "bracket") {
                   int i = e.readInt();
-                  if (i == 0 || i == 1)
-                        _hasBracket = i;
+                  if (i == 0 || i == 1 || i == 2)
+                        _bracket = AccidentalBracket(i);
                   }
             else if (tag == "subtype")
                   setSubtype(e.readElementText());
@@ -123,7 +173,7 @@ void Accidental::read(XmlReader& e)
 //   write
 //---------------------------------------------------------
 
-void Accidental::write(Xml& xml) const
+void Accidental::write(XmlWriter& xml) const
       {
       xml.stag(name());
       writeProperty(xml, P_ID::ACCIDENTAL_BRACKET);
@@ -209,8 +259,9 @@ void Accidental::layout()
       el.clear();
 
       QRectF r;
+      // TODO: remove Accidental in layout()
       // don't show accidentals for tab or slash notation
-      if ((staff() && staff()->isTabStaff()) || (note() && note()->fixed())) {
+      if ((staff() && staff()->isTabStaff(tick())) || (note() && note()->fixed())) {
             setbbox(r);
             return;
             }
@@ -221,10 +272,12 @@ void Accidental::layout()
       setMag(m);
 
       m = magS();
-      if (_hasBracket) {
-            SymElement e(SymId::accidentalParensLeft, 0.0);
+
+      if (_bracket != AccidentalBracket::NONE) {
+            SymId id = _bracket == AccidentalBracket::PARENTHESIS ? SymId::accidentalParensLeft : SymId::accidentalBracketLeft;
+            SymElement e(id, 0.0);
             el.append(e);
-            r |= symBbox(SymId::accidentalParensLeft);
+            r |= symBbox(id);
             }
 
       SymId s = symbol();
@@ -233,11 +286,12 @@ void Accidental::layout()
       el.append(e);
       r |= symBbox(s).translated(x, 0.0);
 
-      if (_hasBracket) {
+      if (_bracket != AccidentalBracket::NONE) {
+            SymId id = _bracket == AccidentalBracket::PARENTHESIS ? SymId::accidentalParensRight : SymId::accidentalBracketRight;
             x = r.x()+r.width();
-            SymElement e(SymId::accidentalParensRight, x);
+            SymElement e(id, x);
             el.append(e);
-            r |= symBbox(SymId::accidentalParensRight).translated(x, 0.0);
+            r |= symBbox(id).translated(x, 0.0);
             }
       setbbox(r);
       }
@@ -267,7 +321,7 @@ AccidentalType Accidental::value2subtype(AccidentalVal v)
 void Accidental::draw(QPainter* painter) const
       {
       // don't show accidentals for tab or slash notation
-      if ((staff() && staff()->isTabStaff()) || (note() && note()->fixed()))
+      if ((staff() && staff()->isTabStaff(tick())) || (note() && note()->fixed()))
             return;
       painter->setPen(curColor());
       for (const SymElement& e : el)
@@ -281,7 +335,7 @@ void Accidental::draw(QPainter* painter) const
 bool Accidental::acceptDrop(const DropData& data) const
       {
       Element* e = data.element;
-      return e->isIcon() && toIcon(e)->iconType() == IconType::BRACKETS;
+      return e->isIcon() && (toIcon(e)->iconType() == IconType::BRACKETS || toIcon(e)->iconType() == IconType::PARENTHESES);
       }
 
 //---------------------------------------------------------
@@ -292,25 +346,24 @@ Element* Accidental::drop(const DropData& data)
       {
       Element* e = data.element;
       switch(e->type()) {
-            case Element::Type::ICON :
-                  if (toIcon(e)->iconType() == IconType::BRACKETS && !_hasBracket)
-                        undoSetHasBracket(true);
+            case ElementType::ICON :
+                  switch(toIcon(e)->iconType()) {
+                        case IconType::BRACKETS:
+                              undoChangeProperty(P_ID::ACCIDENTAL_BRACKET, int(AccidentalBracket::BRACKET), PropertyFlags::NOSTYLE);
+                              break;
+                        case IconType::PARENTHESES:
+                              undoChangeProperty(P_ID::ACCIDENTAL_BRACKET, int(AccidentalBracket::PARENTHESIS), PropertyFlags::NOSTYLE);
+                              break;
+                        default:
+                              qDebug("unknown icon type");
+                              break;
+                        }
                   break;
-
             default:
                   break;
             }
       delete e;
       return 0;
-      }
-
-//---------------------------------------------------------
-//   undoSetHasBracket
-//---------------------------------------------------------
-
-void Accidental::undoSetHasBracket(bool val)
-      {
-      undoChangeProperty(P_ID::ACCIDENTAL_BRACKET, val);
       }
 
 //---------------------------------------------------------
@@ -330,7 +383,7 @@ QVariant Accidental::getProperty(P_ID propertyId) const
       {
       switch (propertyId) {
             case P_ID::SMALL:              return _small;
-            case P_ID::ACCIDENTAL_BRACKET: return _hasBracket;
+            case P_ID::ACCIDENTAL_BRACKET: return int(bracket());
             case P_ID::ROLE:               return int(role());
             default:
                   return Element::getProperty(propertyId);
@@ -345,7 +398,7 @@ QVariant Accidental::propertyDefault(P_ID propertyId) const
       {
       switch (propertyId) {
             case P_ID::SMALL:              return false;
-            case P_ID::ACCIDENTAL_BRACKET: return false;
+            case P_ID::ACCIDENTAL_BRACKET: return int(AccidentalBracket::NONE);
             case P_ID::ROLE:               return int(AccidentalRole::AUTO);
             default:
                   return Element::propertyDefault(propertyId);
@@ -363,7 +416,7 @@ bool Accidental::setProperty(P_ID propertyId, const QVariant& v)
                   _small = v.toBool();
                   break;
             case P_ID::ACCIDENTAL_BRACKET:
-                  _hasBracket = v.toBool();
+                  _bracket = AccidentalBracket(v.toInt());
                   break;
             case P_ID::ROLE:
                   _role = v.value<AccidentalRole>();

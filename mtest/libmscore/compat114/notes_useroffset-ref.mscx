@@ -29,8 +29,6 @@
       <TextStyle>
         <halign>center</halign>
         <valign>baseline</valign>
-        <xoffset>0</xoffset>
-        <yoffset>8</yoffset>
         <offsetType>spatium</offsetType>
         <name>Dynamics</name>
         <family>FreeSerif</family>
@@ -100,6 +98,8 @@
     <metaTag name="workTitle"></metaTag>
     <PageList>
       <Page>
+        <System>
+          </System>
         <System>
           </System>
         </Page>
@@ -265,7 +265,7 @@
         <Chord>
           <durationType>quarter</durationType>
           <Stem>
-            <pos x="0.617965" y="-3.31219"/>
+            <pos x="-9.43152e+178" y="-3.31219"/>
             <userLen>0.2</userLen>
             </Stem>
           <Note>
@@ -289,8 +289,6 @@
           <durationType>half</durationType>
           </Rest>
         <BarLine>
-          <subtype>end</subtype>
-          <span>1</span>
           </BarLine>
         </Measure>
       </Staff>

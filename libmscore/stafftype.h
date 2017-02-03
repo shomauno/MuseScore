@@ -23,7 +23,7 @@ namespace Ms {
 class Chord;
 class ChordRest;
 class Staff;
-class Xml;
+class XmlWriter;
 
 // all in spatium units
 #define STAFFTYPE_TAB_DEFAULTSTEMLEN_UP   3.0
@@ -175,16 +175,23 @@ class StaffType {
       QString _xmlName;                   // the name used to reference this preset in intruments.xml
       QString _name;                      // user visible name
 
+      qreal _userMag           { 1.0   };       // allowed 0.1 - 10.0
+      Spatium _yoffset         { 0.0   };
+      bool _small              { false };
       int _lines            = 5;
       int _stepOffset       = 0;
       Spatium _lineDistance = Spatium(1);
 
-      bool _genClef         = true;       // create clef at beginning of system
       bool _showBarlines    = true;
+      bool _showLedgerLines = true;
       bool _slashStyle      = false;      // do not show stems
+
+      bool _genClef         = true;       // create clef at beginning of system
       bool _genTimesig      = true;       // whether time signature is shown or not
       bool _genKeysig       = true;       // create key signature at beginning of system
-      bool _showLedgerLines = true;
+
+      // Standard: configurable properties
+      NoteHeadScheme _noteHeadScheme = NoteHeadScheme::HEAD_NORMAL;
 
       // TAB: configurable properties
       qreal _durationFontSize = 15.0;     // the size (in points) for the duration symbol font
@@ -245,15 +252,16 @@ class StaffType {
 
    public:
       StaffType();
-      StaffType(StaffGroup sg, const QString& xml, const QString& name, int lines, qreal lineDist, bool genClef,
-            bool showBarLines, bool stemless, bool genTimeSig, bool genKeySig, bool showLedgerLines);
+      StaffType(StaffGroup sg, const QString& xml, const QString& name, int lines, int stpOff, qreal lineDist,
+            bool genClef, bool showBarLines, bool stemless, bool genTimeSig,
+            bool genKeySig, bool showLedgerLines);
 
-      StaffType(StaffGroup sg, const QString& xml, const QString& name, int lines, qreal lineDist, bool genClef,
-                  bool showBarLines, bool stemless, bool genTimesig,
-                  const QString& durFontName, qreal durFontSize, qreal durFontUserY, qreal genDur,
-                  const QString& fretFontName, qreal fretFontSize, qreal fretFontUserY, TablatureSymbolRepeat symRepeat,
-                  bool linesThrough, TablatureMinimStyle minimStyle, bool onLines, bool showRests,
-                  bool stemsDown, bool stemThrough, bool upsideDown, bool useNumbers, bool showBackTied);
+      StaffType(StaffGroup sg, const QString& xml, const QString& name, int lines, int stpOff, qreal lineDist,
+            bool genClef, bool showBarLines, bool stemless, bool genTimesig,
+            const QString& durFontName, qreal durFontSize, qreal durFontUserY, qreal genDur,
+            const QString& fretFontName, qreal fretFontSize, qreal fretFontUserY, TablatureSymbolRepeat symRepeat,
+            bool linesThrough, TablatureMinimStyle minimStyle, bool onLines, bool showRests,
+            bool stemsDown, bool stemThrough, bool upsideDown, bool useNumbers, bool showBackTied);
 
       virtual ~StaffType() {}
       bool operator==(const StaffType&) const;
@@ -267,7 +275,7 @@ class StaffType {
       const char* groupName() const;
       static const char* groupName(StaffGroup);
 
-      void setLines(int val);
+      void setLines(int val)                   { _lines = val;            }
       int lines() const                        { return _lines;           }
       void setStepOffset(int v)                { _stepOffset = v;         }
       int stepOffset() const                   { return _stepOffset;      }
@@ -277,8 +285,15 @@ class StaffType {
       bool genClef() const                     { return _genClef;         }
       void setShowBarlines(bool val)           { _showBarlines = val;     }
       bool showBarlines() const                { return _showBarlines;    }
+      qreal userMag() const                    { return _userMag;         }
+      bool small() const                       { return _small;           }
+      void setUserMag(qreal val)               { _userMag = val;          }
+      void setSmall(bool val)                  { _small = val;            }
+      Spatium yoffset() const                  { return _yoffset;         }
+      void setYoffset(Spatium val)             { _yoffset = val;          }
+      qreal spatium(Score*) const;
 
-      void write(Xml& xml) const;
+      void write(XmlWriter& xml) const;
       void read(XmlReader&);
 
       void setSlashStyle(bool val)             { _slashStyle = val;       }
@@ -297,6 +312,8 @@ class StaffType {
       bool genKeysig() const                   { return _genKeysig;         }
       void setShowLedgerLines(bool val)        { _showLedgerLines = val;    }
       bool showLedgerLines() const             { return _showLedgerLines;   }
+      void setNoteHeadScheme(NoteHeadScheme s) { _noteHeadScheme = s;       }
+      NoteHeadScheme noteHeadScheme()          { return _noteHeadScheme;    }
 
       QString fretString(int fret, int string, bool ghost) const;   // returns a string with the text for fret
       QString durationString(TDuration::DurationType type, int dots) const;
@@ -369,12 +386,16 @@ class StaffType {
       QPointF chordStemPosBeam(const  Chord*) const;
       qreal   chordStemLength(const Chord*) const;
 
+      bool isTabStaff() const  { return _group == StaffGroup::TAB; }
       // static functions for font config files
       static QList<QString> fontNames(bool bDuration);
       static bool fontData(bool bDuration, int nIdx, QString *pFamily, QString *pDisplayName, qreal * pSize, qreal *pYOff);
 
       static void initStaffTypes();
       static const std::vector<StaffType>& presets() { return _presets; }
+      static QString scheme2userName(NoteHeadScheme ns);
+      static QString scheme2name(NoteHeadScheme ns);
+      static NoteHeadScheme name2scheme(QString name);
       };
 
 //---------------------------------------------------------
@@ -404,7 +425,7 @@ class TabDurationSymbol : public Element {
       virtual void draw(QPainter*) const;
       virtual bool isEditable() const           { return false; }
       virtual void layout();
-      virtual Element::Type type() const        { return Element::Type::TAB_DURATION_SYMBOL; }
+      virtual ElementType type() const        { return ElementType::TAB_DURATION_SYMBOL; }
 
       TabBeamGrid beamGrid()                    { return _beamGrid; }
       void layout2();               // second step of layout: after horiz. pos. are defined, compute width of 'grid beams'

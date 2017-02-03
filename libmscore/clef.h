@@ -21,11 +21,9 @@
 #include "element.h"
 #include "mscore.h"
 
-class QPainter;
-
 namespace Ms {
 
-class Xml;
+class XmlWriter;
 class MuseScoreView;
 class Segment;
 
@@ -136,9 +134,6 @@ class Clef : public Element {
 
       SymId symId;
       bool _showCourtesy;
-      bool _showPreviousClef;       // show clef type at position tick-1
-                                    // used for first clef on staff immediatly followed
-                                    // by a different clef at same tick position
       bool _small;
 
       ClefTypeList _clefTypes;
@@ -148,7 +143,7 @@ class Clef : public Element {
       Clef(const Clef&);
       ~Clef() {}
       virtual Clef* clone() const        { return new Clef(*this); }
-      virtual Element::Type type() const { return Element::Type::CLEF; }
+      virtual ElementType type() const { return ElementType::CLEF; }
       virtual qreal mag() const;
 
       Segment* segment() const           { return (Segment*)parent(); }
@@ -159,7 +154,7 @@ class Clef : public Element {
       virtual void layout();
       virtual void draw(QPainter*) const;
       virtual void read(XmlReader&);
-      virtual void write(Xml&) const;
+      virtual void write(XmlWriter&) const;
 
       virtual bool isEditable() const                    { return false; }
 

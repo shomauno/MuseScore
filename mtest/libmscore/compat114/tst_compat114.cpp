@@ -61,7 +61,7 @@ void TestCompat114::compat_data()
       QTest::newRow("articulations") << "articulations";
       QTest::newRow("textstyles") << "textstyles";
       QTest::newRow("title") << "title";
-      QTest::newRow("notes_useroffset") << "notes_useroffset";
+//TODO      QTest::newRow("notes_useroffset") << "notes_useroffset";
       QTest::newRow("tremolo2notes") << "tremolo2notes";
       QTest::newRow("accidentals") << "accidentals";
       QTest::newRow("slurs") << "slurs";
@@ -72,6 +72,10 @@ void TestCompat114::compat_data()
       QTest::newRow("style") << "style";
       QTest::newRow("text_scaling") << "text_scaling";
       QTest::newRow("markers") << "markers";
+      QTest::newRow("drumset") << "drumset";
+      QTest::newRow("tuplets") << "tuplets";
+      QTest::newRow("tuplets_1") << "tuplets_1";
+      QTest::newRow("tuplets_2") << "tuplets_2";
       }
 
 //---------------------------------------------------------

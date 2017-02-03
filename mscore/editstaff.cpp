@@ -37,7 +37,6 @@
 #include "musescore.h"
 #include "seq.h"
 #include "selinstrument.h"
-#include "texteditor.h"
 
 namespace Ms {
 
@@ -49,25 +48,59 @@ EditStaff::EditStaff(Staff* s, int /*tick*/, QWidget* parent)
    : QDialog(parent)
       {
       setObjectName("EditStaff");
-      orgStaff = s;
       setupUi(this);
       setWindowFlags(this->windowFlags() & ~Qt::WindowContextHelpButtonHint);
       setModal(true);
 
+      staff = nullptr;
+      setStaff(s);
+
+      MuseScore::restoreGeometry(this);
+
+      connect(buttonBox,            SIGNAL(clicked(QAbstractButton*)), SLOT(bboxClicked(QAbstractButton*)));
+      connect(changeInstrument,     SIGNAL(clicked()),            SLOT(showInstrumentDialog()));
+      connect(changeStaffType,      SIGNAL(clicked()),            SLOT(showStaffTypeDialog()));
+      connect(minPitchASelect,      SIGNAL(clicked()),            SLOT(minPitchAClicked()));
+      connect(maxPitchASelect,      SIGNAL(clicked()),            SLOT(maxPitchAClicked()));
+      connect(minPitchPSelect,      SIGNAL(clicked()),            SLOT(minPitchPClicked()));
+      connect(maxPitchPSelect,      SIGNAL(clicked()),            SLOT(maxPitchPClicked()));
+      connect(editStringData,       SIGNAL(clicked()),            SLOT(editStringDataClicked()));
+      connect(lines,                SIGNAL(valueChanged(int)),    SLOT(numOfLinesChanged()));
+      connect(lineDistance,         SIGNAL(valueChanged(double)), SLOT(lineDistanceChanged()));
+      connect(showClef,             SIGNAL(clicked()),            SLOT(showClefChanged()));
+      connect(showTimesig,          SIGNAL(clicked()),            SLOT(showTimeSigChanged()));
+      connect(showBarlines,         SIGNAL(clicked()),            SLOT(showBarlinesChanged()));
+
+      connect(nextButton,           SIGNAL(clicked()),            SLOT(gotoNextStaff()));
+      connect(previousButton,       SIGNAL(clicked()),            SLOT(gotoPreviousStaff()));
+
+      addAction(getAction("help"));  // why is this needed?
+      }
+
+//---------------------------------------------------------
+//   setStaff
+//---------------------------------------------------------
+
+void EditStaff::setStaff(Staff* s)
+      {
+      if (staff != nullptr)
+            delete staff;
+
+      orgStaff = s;
       Part* part        = orgStaff->part();
       instrument        = *part->instrument(/*tick*/);
       Score* score      = part->score();
       staff             = new Staff(score);
-      staff->setSmall(orgStaff->small());
+      staff->setSmall(0, orgStaff->small(0));
       staff->setInvisible(orgStaff->invisible());
       staff->setUserDist(orgStaff->userDist());
       staff->setColor(orgStaff->color());
-      staff->setStaffType(orgStaff->staffType());
+      staff->setStaffType(0, orgStaff->staffType(0));
       staff->setPart(part);
       staff->setCutaway(orgStaff->cutaway());
       staff->setHideWhenEmpty(orgStaff->hideWhenEmpty());
       staff->setShowIfEmpty(orgStaff->showIfEmpty());
-      staff->setUserMag(orgStaff->userMag());
+      staff->setUserMag(0, orgStaff->userMag(0));
       staff->setHideSystemBarLine(orgStaff->hideSystemBarLine());
 
       // get tick range for instrument
@@ -89,33 +122,17 @@ EditStaff::EditStaff(Staff* s, int /*tick*/, QWidget* parent)
       // set dlg controls
       spinExtraDistance->setValue(s->userDist() / score->spatium());
       invisible->setChecked(staff->invisible());
-      small->setChecked(staff->small());
+      small->setChecked(staff->small(0));
       color->setColor(s->color());
       partName->setText(part->partName());
       cutaway->setChecked(staff->cutaway());
       hideMode->setCurrentIndex(int(staff->hideWhenEmpty()));
       showIfEmpty->setChecked(staff->showIfEmpty());
       hideSystemBarLine->setChecked(staff->hideSystemBarLine());
-      mag->setValue(staff->userMag() * 100.0);
+      mag->setValue(staff->userMag(0) * 100.0);
       updateStaffType();
       updateInstrument();
-
-      MuseScore::restoreGeometry(this);
-
-      connect(buttonBox,            SIGNAL(clicked(QAbstractButton*)), SLOT(bboxClicked(QAbstractButton*)));
-      connect(changeInstrument,     SIGNAL(clicked()),            SLOT(showInstrumentDialog()));
-      connect(changeStaffType,      SIGNAL(clicked()),            SLOT(showStaffTypeDialog()));
-      connect(minPitchASelect,      SIGNAL(clicked()),            SLOT(minPitchAClicked()));
-      connect(maxPitchASelect,      SIGNAL(clicked()),            SLOT(maxPitchAClicked()));
-      connect(minPitchPSelect,      SIGNAL(clicked()),            SLOT(minPitchPClicked()));
-      connect(maxPitchPSelect,      SIGNAL(clicked()),            SLOT(maxPitchPClicked()));
-      connect(editStringData,       SIGNAL(clicked()),            SLOT(editStringDataClicked()));
-      connect(lines,                SIGNAL(valueChanged(int)),    SLOT(numOfLinesChanged()));
-      connect(lineDistance,         SIGNAL(valueChanged(double)), SLOT(lineDistanceChanged()));
-      connect(showClef,             SIGNAL(clicked()),            SLOT(showClefChanged()));
-      connect(showTimesig,          SIGNAL(clicked()),            SLOT(showTimeSigChanged()));
-      connect(showBarlines,         SIGNAL(clicked()),            SLOT(showBarlinesChanged()));
-      addAction(getAction("help"));  // why is this needed?
+      updateNextPreviousButtons();
       }
 
 //---------------------------------------------------------
@@ -134,7 +151,7 @@ void EditStaff::hideEvent(QHideEvent* ev)
 
 void EditStaff::updateStaffType()
       {
-      StaffType* staffType = staff->staffType();
+      StaffType* staffType = staff->staffType(0);
       lines->setValue(staffType->lines());
       lineDistance->setValue(staffType->lineDistance().val());
       showClef->setChecked(staffType->genClef());
@@ -211,6 +228,44 @@ void EditStaff::updateInterval(const Interval& iv)
       up->setChecked(upFlag);
       down->setChecked(!upFlag);
       octave->setValue(oct);
+      }
+
+//---------------------------------------------------------
+//   updateNextPreviousButtons
+//---------------------------------------------------------
+
+void EditStaff::updateNextPreviousButtons()
+      {
+      int staffIdx = orgStaff->idx();
+
+      nextButton->setEnabled(staffIdx < (orgStaff->score()->nstaves() - 1));
+      previousButton->setEnabled(staffIdx != 0);
+      }
+
+//---------------------------------------------------------
+//   gotoNextStaff
+//---------------------------------------------------------
+
+void EditStaff::gotoNextStaff()
+      {
+      Staff* nextStaff = orgStaff->score()->staff(orgStaff->idx() + 1);
+      if (nextStaff)
+            {
+            setStaff(nextStaff);
+            }
+      }
+
+//---------------------------------------------------------
+//   gotoPreviousStaff
+//---------------------------------------------------------
+
+void EditStaff::gotoPreviousStaff()
+      {
+      Staff* prevStaff = orgStaff->score()->staff(orgStaff->idx() - 1);
+      if (prevStaff)
+            {
+            setStaff(prevStaff);
+            }
       }
 
 //---------------------------------------------------------
@@ -313,9 +368,9 @@ void EditStaff::apply()
             score->undo(new ChangeStaff(orgStaff, inv, userDist * score->spatium(), hideEmpty, ifEmpty, cutAway, hideSystemBL));
             }
 
-      if ( !(*orgStaff->staffType() == *staff->staffType()) ) {
+      if ( !(*orgStaff->staffType(0) == *staff->staffType(0)) ) {
             // updateNeeded |= (orgStaff->staffGroup() == StaffGroup::TAB || staff->staffGroup() == StaffGroup::TAB);
-            score->undo(new ChangeStaffType(orgStaff, *staff->staffType()));
+            score->undo(new ChangeStaffType(orgStaff, *staff->staffType(0)));
             }
 
       score->update();
@@ -376,27 +431,27 @@ void EditStaff::maxPitchPClicked()
 
 void EditStaff::lineDistanceChanged()
       {
-      staff->staffType()->setLineDistance(Spatium(lineDistance->value()));
+      staff->staffType(0)->setLineDistance(Spatium(lineDistance->value()));
       }
 
 void EditStaff::numOfLinesChanged()
       {
-      staff->staffType()->setLines(lines->value());
+      staff->staffType(0)->setLines(lines->value());
       }
 
 void EditStaff::showClefChanged()
       {
-      staff->staffType()->setGenClef(showClef->checkState() == Qt::Checked);
+      staff->staffType(0)->setGenClef(showClef->checkState() == Qt::Checked);
       }
 
 void EditStaff::showTimeSigChanged()
       {
-      staff->staffType()->setGenTimesig(showTimesig->checkState() == Qt::Checked);
+      staff->staffType(0)->setGenTimesig(showTimesig->checkState() == Qt::Checked);
       }
 
 void EditStaff::showBarlinesChanged()
       {
-      staff->staffType()->setShowBarlines(showBarlines->checkState() == Qt::Checked);
+      staff->staffType(0)->setShowBarlines(showBarlines->checkState() == Qt::Checked);
       }
 
 //---------------------------------------------------------
@@ -499,7 +554,7 @@ void EditStaff::showStaffTypeDialog()
       EditStaffType editor(this, staff);
       editor.setWindowModality(Qt::WindowModal);
       if (editor.exec()) {
-            staff->setStaffType(editor.getStaffType());
+            staff->setStaffType(0, editor.getStaffType());
             updateStaffType();
             }
       }

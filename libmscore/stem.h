@@ -15,8 +15,6 @@
 
 #include "element.h"
 
-class QPainter;
-
 namespace Ms {
 
 class Chord;
@@ -29,9 +27,10 @@ class Chord;
 class Stem : public Element {
       Q_OBJECT
 
-      QLineF line;            // p1 is attached to notehead
-      qreal _userLen;
-      qreal _len;             // allways positive
+      QLineF line;                  // p1 is attached to notehead
+      qreal _userLen   { 0.0 };
+      qreal _len       { 0.0 };     // allways positive
+      qreal _lineWidth;
 
       virtual void startEdit(MuseScoreView*, const QPointF&);
 
@@ -40,7 +39,7 @@ class Stem : public Element {
       Stem &operator=(const Stem&) = delete;
 
       virtual Stem* clone() const        { return new Stem(*this); }
-      virtual Element::Type type() const { return Element::Type::STEM; }
+      virtual ElementType type() const { return ElementType::STEM; }
       virtual void draw(QPainter*) const;
       virtual bool isEditable() const    { return true; }
       virtual void layout();
@@ -49,7 +48,7 @@ class Stem : public Element {
       virtual void editDrag(const EditData&);
       virtual void updateGrips(Grip*, QVector<QRectF>&) const;
       virtual int grips() const override { return 1; }
-      virtual void write(Xml& xml) const;
+      virtual void write(XmlWriter& xml) const;
       virtual void read(XmlReader& e);
       virtual void reset();
       virtual bool acceptDrop(const DropData&) const override;
@@ -64,7 +63,7 @@ class Stem : public Element {
       qreal userLen() const           { return _userLen; }
       void setUserLen(qreal l)        { _userLen = l; }
 
-      qreal lineWidth() const;
+      qreal lineWidth() const         { return _lineWidth; }
 
       QPointF hookPos() const;
       void setLen(qreal l);

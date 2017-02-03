@@ -36,7 +36,7 @@ class GlissandoSegment : public LineSegment {
    public:
       GlissandoSegment(Score* s) : LineSegment(s)           {}
       Glissando* glissando() const                          { return (Glissando*)spanner(); }
-      virtual Element::Type type() const override           { return Element::Type::GLISSANDO_SEGMENT; }
+      virtual ElementType type() const override           { return ElementType::GLISSANDO_SEGMENT; }
       virtual GlissandoSegment* clone() const override      { return new GlissandoSegment(*this); }
       virtual void draw(QPainter*) const override;
       virtual void layout() override;
@@ -84,11 +84,11 @@ class Glissando : public SLine {
 
       // overriden inherited methods
       virtual Glissando* clone() const override       { return new Glissando(*this); }
-      virtual Element::Type type() const override     { return Element::Type::GLISSANDO; }
+      virtual ElementType type() const override     { return ElementType::GLISSANDO; }
       virtual LineSegment* createLineSegment() override;
       virtual void scanElements(void* data, void (*func)(void*, Element*), bool all=true) override;
       virtual void layout() override;
-      virtual void write(Xml&) const override;
+      virtual void write(XmlWriter&) const override;
       virtual void read(XmlReader&) override;
 
       // Glissando specific methods

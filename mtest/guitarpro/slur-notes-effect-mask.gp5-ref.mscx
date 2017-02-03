@@ -38,14 +38,6 @@
     <metaTag name="translator"></metaTag>
     <metaTag name="workNumber"></metaTag>
     <metaTag name="workTitle"></metaTag>
-    <PageList>
-      <Page>
-        <System>
-          </System>
-        <System>
-          </System>
-        </Page>
-      </PageList>
     <Part>
       <Staff id="1">
         <StaffType group="pitched">
@@ -197,7 +189,7 @@
               </Text>
             <pitch>38</pitch>
             <tpc>16</tpc>
-            <head>1</head>
+            <head>cross</head>
             <fret>0</fret>
             <string>1</string>
             <ghost>1</ghost>
@@ -231,7 +223,7 @@
             <lid>22</lid>
             <pitch>33</pitch>
             <tpc>17</tpc>
-            <head>1</head>
+            <head>cross</head>
             <fret>0</fret>
             <string>2</string>
             <ghost>1</ghost>
@@ -262,7 +254,7 @@
               </Text>
             <pitch>33</pitch>
             <tpc>17</tpc>
-            <head>1</head>
+            <head>cross</head>
             <fret>0</fret>
             <string>2</string>
             <ghost>1</ghost>
@@ -306,7 +298,7 @@
               </Text>
             <pitch>33</pitch>
             <tpc>17</tpc>
-            <head>1</head>
+            <head>cross</head>
             <fret>0</fret>
             <string>2</string>
             <ghost>1</ghost>
@@ -363,14 +355,6 @@
       <showUnprintable>1</showUnprintable>
       <showFrames>1</showFrames>
       <showMargins>0</showMargins>
-      <PageList>
-        <Page>
-          <System>
-            </System>
-          <System>
-            </System>
-          </Page>
-        </PageList>
       <Part>
         <Staff id="1">
           <linkedTo>1</linkedTo>
@@ -553,7 +537,7 @@
                 </Text>
               <pitch>38</pitch>
               <tpc>16</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>1</string>
               <ghost>1</ghost>
@@ -587,7 +571,7 @@
               <lid>22</lid>
               <pitch>33</pitch>
               <tpc>17</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>2</string>
               <ghost>1</ghost>
@@ -618,7 +602,7 @@
                 </Text>
               <pitch>33</pitch>
               <tpc>17</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>2</string>
               <ghost>1</ghost>
@@ -662,7 +646,7 @@
                 </Text>
               <pitch>33</pitch>
               <tpc>17</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>2</string>
               <ghost>1</ghost>
@@ -798,7 +782,7 @@
                 </Text>
               <pitch>38</pitch>
               <tpc>16</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>1</string>
               <ghost>1</ghost>
@@ -832,7 +816,7 @@
               <lid>22</lid>
               <pitch>33</pitch>
               <tpc>17</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>2</string>
               <ghost>1</ghost>
@@ -863,7 +847,7 @@
                 </Text>
               <pitch>33</pitch>
               <tpc>17</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>2</string>
               <ghost>1</ghost>
@@ -907,7 +891,7 @@
                 </Text>
               <pitch>33</pitch>
               <tpc>17</tpc>
-              <head>1</head>
+              <head>cross</head>
               <fret>0</fret>
               <string>2</string>
               <ghost>1</ghost>

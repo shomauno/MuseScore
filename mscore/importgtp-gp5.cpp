@@ -240,7 +240,7 @@ int GuitarPro5::readBeat(int tick, int voice, Measure* measure, int staffIdx, Tu
                   }
 
             cr->setDuration(l);
-            if (cr->type() == Element::Type::REST && (pause == 0 || l >= measure->len())) {
+            if (cr->type() == ElementType::REST && (pause == 0 || l >= measure->len())) {
                   cr->setDurationType(TDuration::DurationType::V_MEASURE);
                   cr->setDuration(measure->len());
                   }
@@ -276,7 +276,7 @@ int GuitarPro5::readBeat(int tick, int voice, Measure* measure, int staffIdx, Tu
                   cr->add(lyrics);
             }
       int rr = readChar();
-      if (cr && (cr->type() == Element::Type::CHORD)) {
+      if (cr && (cr->type() == ElementType::CHORD)) {
             Chord* chord = static_cast<Chord*>(cr);
             applyBeatEffects(chord, beatEffects);
             if (rr == ARPEGGIO_DOWN)
@@ -289,7 +289,7 @@ int GuitarPro5::readBeat(int tick, int voice, Measure* measure, int staffIdx, Tu
             int rrr = readChar();
 qDebug("  3beat read 0x%02x", rrr);
            }
-      if (cr && (cr->type() == Element::Type::CHORD) && slide > 0)
+      if (cr && (cr->type() == ElementType::CHORD) && slide > 0)
             createSlide(slide, cr, staffIdx);
       restsForEmptyBeats(segment, measure, cr, l, track, tick);
       return cr ? cr->actualTicks() : measure->ticks();
@@ -428,7 +428,7 @@ void GuitarPro5::readTracks()
                   clefId = ClefType::PERC;
                   // instr->setUseDrumset(DrumsetKind::GUITAR_PRO);
                   instr->setDrumset(gpDrumset);
-                  staff->setStaffType(StaffType::preset(StaffTypes::PERC_DEFAULT));
+                  staff->setStaffType(0, StaffType::preset(StaffTypes::PERC_DEFAULT));
                   }
             else if (patch >= 24 && patch < 32)
                   clefId = ClefType::G8_VB;
@@ -438,13 +438,12 @@ void GuitarPro5::readTracks()
             Clef* clef = new Clef(score);
             clef->setClefType(clefId);
             clef->setTrack(i * VOICES);
-            Segment* segment = measure->getSegment(Segment::Type::Clef, 0);
+            Segment* segment = measure->getSegment(Segment::Type::HeaderClef, 0);
             segment->add(clef);
 
             if (capo > 0) {
                   Segment* s = measure->getSegment(Segment::Type::ChordRest, measure->tick());
                   StaffText* st = new StaffText(score);
-                  st->setTextStyleType(TextStyleType::STAFF);
                   st->setPlainText(QString("Capo. fret ") + QString::number(capo));
                   st->setParent(s);
                   st->setTrack(i * VOICES);
@@ -670,7 +669,7 @@ bool GuitarPro5::readNoteEffects(Note* note)
             gc->setDurationType(d);
             gc->setDuration(d.fraction());
             gc->setNoteType(note_type);
-            gc->setMag(note->chord()->staff()->mag() * score->styleD(StyleIdx::graceNoteMag));
+            gc->setMag(note->chord()->staff()->mag(0) * score->styleD(StyleIdx::graceNoteMag));
             note->chord()->add(gc);
             addDynamic(gn, dynamic);
 
@@ -903,7 +902,7 @@ bool GuitarPro5::readNote(int string, Note* note)
             while (segment) {
                   Element* e = segment->element(track);
                   if (e) {
-                        if (e->type() == Element::Type::CHORD) {
+                        if (e->type() == ElementType::CHORD) {
                               Chord* chord2 = static_cast<Chord*>(e);
                               foreach(Note* note2, chord2->notes()) {
                                     if (note2->string() == string) {

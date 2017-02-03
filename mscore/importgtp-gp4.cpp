@@ -304,7 +304,7 @@ bool GuitarPro4::readNote(int string, int staffIdx, Note* note)
                   gc->setDurationType(d);
                   gc->setDuration(d.fraction());
                   gc->setNoteType(NoteType::ACCIACCATURA);
-                  gc->setMag(note->chord()->staff()->mag() * score->styleD(StyleIdx::graceNoteMag));
+                  gc->setMag(note->chord()->staff()->mag(0) * score->styleD(StyleIdx::graceNoteMag));
                   note->chord()->add(gc);
                   addDynamic(gn, dynamic);
 
@@ -420,7 +420,7 @@ bool GuitarPro4::readNote(int string, int staffIdx, Note* note)
             while (segment) {
                   Element* e = segment->element(track);
                   if (e) {
-                        if (e->type() == Element::Type::CHORD) {
+                        if (e->type() == ElementType::CHORD) {
                               Chord* chord2 = static_cast<Chord*>(e);
                               foreach(Note* note2, chord2->notes()) {
                                     if (note2->string() == string) {
@@ -535,7 +535,7 @@ void GuitarPro4::read(QFile* fp)
                   bar.repeatFlags = bar.repeatFlags | Repeat::START;
             if (barBits & SCORE_REPEAT_END) {                // number of repeats
                   bar.repeatFlags = bar.repeatFlags | Repeat::END;
-                  bar.repeats = readUChar();
+                  bar.repeats = readUChar() + 1;
                   }
             if (barBits & SCORE_VOLTA) {                      // a volta
                   uchar voltaNumber = readUChar();
@@ -622,7 +622,7 @@ void GuitarPro4::read(QFile* fp)
                   clefId = ClefType::PERC;
                   // instr->setUseDrumset(DrumsetKind::GUITAR_PRO);
                   instr->setDrumset(gpDrumset);
-                  staff->setStaffType(StaffType::preset(StaffTypes::PERC_DEFAULT));
+                  staff->setStaffType(0, StaffType::preset(StaffTypes::PERC_DEFAULT));
                   }
             else if (patch >= 24 && patch < 32)
                   clefId = ClefType::G8_VB;
@@ -632,13 +632,12 @@ void GuitarPro4::read(QFile* fp)
             Clef* clef = new Clef(score);
             clef->setClefType(clefId);
             clef->setTrack(i * VOICES);
-            Segment* segment = measure->getSegment(Segment::Type::Clef, 0);
+            Segment* segment = measure->getSegment(Segment::Type::HeaderClef, 0);
             segment->add(clef);
 
             if (capo > 0) {
                   Segment* s = measure->getSegment(Segment::Type::ChordRest, measure->tick());
                   StaffText* st = new StaffText(score);
-                  st->setTextStyleType(TextStyleType::STAFF);
                   st->setPlainText(QString("Capo. fret ") + QString::number(capo));
                   st->setParent(s);
                   st->setTrack(i * VOICES);
@@ -791,7 +790,7 @@ void GuitarPro4::read(QFile* fp)
                               }
 
                         cr->setDuration(l);
-                        if (cr->type() == Element::Type::REST && (pause == 0 || l >= measure->len())) {
+                        if (cr->type() == ElementType::REST && (pause == 0 || l >= measure->len())) {
                               cr->setDurationType(TDuration::DurationType::V_MEASURE);
                               cr->setDuration(measure->len());
                               }
@@ -822,7 +821,7 @@ void GuitarPro4::read(QFile* fp)
                                     note->setTpcFromPitch();
                                     }
                               }
-                        if (cr && (cr->type() == Element::Type::CHORD))
+                        if (cr && (cr->type() == ElementType::CHORD))
                               applyBeatEffects(static_cast<Chord*>(cr), beatEffects);
 
                         // if we see that a tied note has been constructed do not create the tie
@@ -849,7 +848,7 @@ void GuitarPro4::read(QFile* fp)
                               }
                         else if (slurs[staffIdx] && hasSlur) {
                               }
-                        if (cr && (cr->type() == Element::Type::CHORD) && slide > 0)
+                        if (cr && (cr->type() == ElementType::CHORD) && slide > 0)
                               createSlide(convertGP4SlideNum(slide), cr, staffIdx);
                         restsForEmptyBeats(segment, measure, cr, l, track, tick);
                         createSlur(hasSlur, staffIdx, cr);

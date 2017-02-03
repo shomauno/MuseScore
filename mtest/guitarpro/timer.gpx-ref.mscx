@@ -38,20 +38,6 @@
     <metaTag name="translator"></metaTag>
     <metaTag name="workNumber"></metaTag>
     <metaTag name="workTitle"></metaTag>
-    <PageList>
-      <Page>
-        <System>
-          </System>
-        <System>
-          </System>
-        <System>
-          </System>
-        <System>
-          </System>
-        <System>
-          </System>
-        </Page>
-      </PageList>
     <Part>
       <Staff id="1">
         <StaffType group="pitched">
@@ -900,7 +886,7 @@
             </Note>
           </Chord>
         </Measure>
-      <Measure number="36">
+      <Measure number="36" len="3/4">
         <Chord>
           <lid>169</lid>
           <durationType>quarter</durationType>
@@ -1291,20 +1277,6 @@
       <showUnprintable>1</showUnprintable>
       <showFrames>1</showFrames>
       <showMargins>0</showMargins>
-      <PageList>
-        <Page>
-          <System>
-            </System>
-          <System>
-            </System>
-          <System>
-            </System>
-          <System>
-            </System>
-          <System>
-            </System>
-          </Page>
-        </PageList>
       <Part>
         <Staff id="1">
           <linkedTo>1</linkedTo>
@@ -2233,7 +2205,7 @@
               </Note>
             </Chord>
           </Measure>
-        <Measure number="36">
+        <Measure number="36" len="3/4">
           <Chord>
             <lid>169</lid>
             <durationType>quarter</durationType>
@@ -3431,7 +3403,7 @@
               </Note>
             </Chord>
           </Measure>
-        <Measure number="36">
+        <Measure number="36" len="3/4">
           <Chord>
             <lid>169</lid>
             <durationType>quarter</durationType>

@@ -12,6 +12,7 @@
 
 #include "editstafftype.h"
 #include "libmscore/part.h"
+#include "libmscore/mscore.h"
 #include "libmscore/score.h"
 #include "libmscore/staff.h"
 #include "libmscore/stringdata.h"
@@ -30,6 +31,22 @@ const char* g_groupNames[STAFF_GROUP_MAX] = {
       };
 
 //---------------------------------------------------------
+//   noteHeadSchemes
+//---------------------------------------------------------
+
+NoteHeadScheme noteHeadSchemes[] = {
+      NoteHeadScheme::HEAD_NORMAL,
+      NoteHeadScheme::HEAD_PITCHNAME,
+      NoteHeadScheme::HEAD_PITCHNAME_GERMAN,
+      NoteHeadScheme::HEAD_SOLFEGE,
+      NoteHeadScheme::HEAD_SOLFEGE_FIXED,
+      NoteHeadScheme::HEAD_SHAPE_NOTE_4,
+      NoteHeadScheme::HEAD_SHAPE_NOTE_7_AIKIN,
+      NoteHeadScheme::HEAD_SHAPE_NOTE_7_FUNK,
+      NoteHeadScheme::HEAD_SHAPE_NOTE_7_WALKER
+      };
+
+//---------------------------------------------------------
 //   EditStaffType
 //---------------------------------------------------------
 
@@ -41,7 +58,7 @@ EditStaffType::EditStaffType(QWidget* parent, Staff* st)
       setupUi(this);
 
       staff     = st;
-      staffType = *staff->staffType();
+      staffType = *staff->staffType(0);
       Instrument* instr = staff->part()->instrument();
 
       // template combo
@@ -71,12 +88,23 @@ EditStaffType::EditStaffType(QWidget* parent, Staff* st)
             durFontName->addItem(name);
       durFontName->setCurrentIndex(0);
 
-      // load a sample tabulature score in preview
+      for (auto i : noteHeadSchemes)
+            noteHeadScheme->addItem(StaffType::scheme2userName(i), StaffType::scheme2name(i));
+
+      // load a sample standard score in preview
       MasterScore* sc = new MasterScore(MScore::defaultStyle());
-      if (readScore(sc, QString(":/data/tab_sample.mscx"), false) == Score::FileError::FILE_NO_ERROR)
-            preview->setScore(sc);
+      if (readScore(sc, QString(":/data/std_sample.mscx"), false) == Score::FileError::FILE_NO_ERROR)
+            standardPreview->setScore(sc);
       else {
-            Q_ASSERT_X(false, "EditStaffType::EditStaffType", "Error in opening sample file for preview");
+            Q_ASSERT_X(false, "EditStaffType::EditStaffType", "Error in opening sample standard file for preview");
+            }
+
+      // load a sample tabulature score in preview
+      sc = new MasterScore(MScore::defaultStyle());
+      if (readScore(sc, QString(":/data/tab_sample.mscx"), false) == Score::FileError::FILE_NO_ERROR)
+            tabPreview->setScore(sc);
+      else {
+            Q_ASSERT_X(false, "EditStaffType::EditStaffType", "Error in opening sample tab file for preview");
             }
 
       setValues();
@@ -87,6 +115,7 @@ EditStaffType::EditStaffType(QWidget* parent, Staff* st)
       connect(showBarlines,   SIGNAL(toggled(bool)),              SLOT(updatePreview()));
       connect(genClef,        SIGNAL(toggled(bool)),              SLOT(updatePreview()));
       connect(genTimesig,     SIGNAL(toggled(bool)),              SLOT(updatePreview()));
+      connect(noteHeadScheme, SIGNAL(currentIndexChanged(int)),   SLOT(updatePreview()));
 
       connect(genKeysigPitched,           SIGNAL(toggled(bool)),  SLOT(updatePreview()));
       connect(showLedgerLinesPitched,     SIGNAL(toggled(bool)),  SLOT(updatePreview()));
@@ -176,6 +205,7 @@ void EditStaffType::setValues()
                   genKeysigPitched->setChecked(staffType.genKeysig());
                   showLedgerLinesPitched->setChecked(staffType.showLedgerLines());
                   stemlessPitched->setChecked(staffType.slashStyle());
+                  noteHeadScheme->setCurrentIndex(int(staffType.noteHeadScheme()));
                   break;
 
             case StaffGroup::TAB:
@@ -349,6 +379,7 @@ void EditStaffType::setFromDlg()
             staffType.setGenKeysig(genKeysigPitched->isChecked());
             staffType.setShowLedgerLines(showLedgerLinesPitched->isChecked());
             staffType.setSlashStyle(stemlessPitched->isChecked());
+            staffType.setNoteHeadScheme(StaffType::name2scheme(noteHeadScheme->currentData().toString()));
             }
       if (staffType.group() == StaffGroup::PERCUSSION) {
             staffType.setGenKeysig(genKeysigPercussion->isChecked());
@@ -501,10 +532,17 @@ void EditStaffType::tabStemThroughCompatibility(bool checked)
 void EditStaffType::updatePreview()
       {
       setFromDlg();
-      preview->score()->staff(0)->setStaffType(&staffType);
-      preview->score()->doLayout();
-      preview->updateAll();
-      preview->update();
+      ExampleView* preview = nullptr;
+      if (staffType.group() == StaffGroup::TAB)
+             preview = tabPreview;
+      else if (staffType.group() == StaffGroup::STANDARD)
+             preview = standardPreview;
+      if (preview) {
+            preview->score()->staff(0)->setStaffType(0, &staffType);
+            preview->score()->doLayout();
+            preview->updateAll();
+            preview->update();
+            }
       }
 
 //---------------------------------------------------------
